@@ -1,0 +1,91 @@
+<!doctype html>
+<!-- "Install in one line" image (900x510, rendered at 2x).
+     google-chrome --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
+       --default-background-color=00000000 --window-size=900,510 \
+       --screenshot=assets/rtn-install.png "file://$PWD/assets/install-terminal.html" -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 900px; height: 510px; background: transparent; overflow: hidden; }
+  .card {
+    position: relative; width: 900px; height: 510px; border-radius: 14px; overflow: hidden;
+    font-family: "Adwaita Sans", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  svg.bg { position: absolute; inset: 0; }
+  .heading {
+    position: absolute; top: 34px; left: 0; right: 0; text-align: center;
+    font-weight: 800; font-size: 34px; letter-spacing: -0.02em;
+    background: linear-gradient(100deg, #7B6CFF, #4FB4FF);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .terminal {
+    position: absolute; left: 70px; right: 70px; top: 100px; bottom: 70px;
+    border-radius: 14px; overflow: hidden;
+    background: rgba(17, 20, 43, 0.94);
+    box-shadow: 0 24px 60px rgba(70, 80, 190, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.5);
+  }
+  .bar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+         background: rgba(255, 255, 255, 0.05); border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .bar .title { margin-left: auto; margin-right: auto; transform: translateX(-26px);
+                color: rgba(255, 255, 255, 0.45); font-size: 12.5px; font-weight: 600; }
+  pre {
+    margin: 0; padding: 16px 22px; color: #D6DCF5; font-size: 13.6px; line-height: 1.62;
+    font-family: "Adwaita Mono", "JetBrains Mono", "DejaVu Sans Mono", monospace; white-space: pre;
+  }
+  .p { color: #7F8CFF; }          /* prompt */
+  .c { color: #FFFFFF; font-weight: 700; }  /* command */
+  .d { color: #7C86A8; }          /* dim */
+  .g { color: #5EE3A1; }          /* green */
+  .b { color: #7FC4FF; }          /* blue */
+  .v { color: #B9A8FF; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="card">
+  <svg class="bg" width="900" height="510" viewBox="0 0 900 510" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#F1EEFF"/><stop offset="0.5" stop-color="#E6EBFF"/><stop offset="1" stop-color="#D9F0FF"/>
+      </linearGradient>
+      <radialGradient id="orbViolet"><stop offset="0" stop-color="#B8A6FF" stop-opacity="0.55"/><stop offset="1" stop-color="#B8A6FF" stop-opacity="0"/></radialGradient>
+      <radialGradient id="orbCyan"><stop offset="0" stop-color="#86DAFF" stop-opacity="0.55"/><stop offset="1" stop-color="#86DAFF" stop-opacity="0"/></radialGradient>
+      <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.15"/>
+      </linearGradient>
+      <filter id="soft"><feGaussianBlur stdDeviation="0.6"/></filter>
+    </defs>
+    <rect width="900" height="510" fill="url(#base)"/>
+    <circle cx="90" cy="40" r="320" fill="url(#orbViolet)"/>
+    <circle cx="840" cy="490" r="360" fill="url(#orbCyan)"/>
+    <g transform="translate(905 560)" fill="none" stroke="url(#rim)" filter="url(#soft)">
+      <circle r="560" stroke-width="1.3"/><circle r="410" stroke-width="1.2"/><circle r="270" stroke-width="1.1"/>
+    </g>
+    <circle cx="-40" cy="-60" r="230" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="1.1" filter="url(#soft)"/>
+  </svg>
+
+  <div class="heading">Install in one line</div>
+
+  <div class="terminal">
+    <div class="bar">
+      <span class="dot" style="background:#FF6B6B"></span>
+      <span class="dot" style="background:#FFC857"></span>
+      <span class="dot" style="background:#5EE3A1"></span>
+      <span class="title">bash</span>
+    </div>
+<pre><span class="p">$</span> <span class="c">curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash</span>
+Installing rtn <span class="v">v1.5.0</span> <span class="d">(linux-x64)</span>
+<span class="d">  downloading</span> …/releases/download/v1.5.0/rtn-linux-x64.tar.gz
+<span class="d">  verified</span>    sha256 055c2c7c25f27e29…
+<span class="g">✓</span> rtn 1.5.0 (QuickJS-ng 0.17.0) installed to <span class="c">~/.rtn/bin/rtn</span>
+
+<span class="p">$</span> <span class="c">rtn server.ts</span>
+Listening on <span class="b">http://localhost:3000/</span>
+
+<span class="p">$</span> <span class="c">rtn upgrade</span>
+<span class="g">rtn is already on version 1.5.0 — nothing to do.</span></pre>
+  </div>
+</div>
+</body>
+</html>

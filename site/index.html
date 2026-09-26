@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RunTime-Now — a tiny JavaScript &amp; TypeScript runtime</title>
+<meta name="description" content="A small, fast JavaScript & TypeScript runtime written in C++. One ~3 MB binary, TypeScript out of the box, Web-standard HTTP server.">
+<meta property="og:title" content="RunTime-Now 1.5.0">
+<meta property="og:description" content="A small, fast JavaScript & TypeScript runtime written in C++.">
+<meta property="og:image" content="https://byteforgestudiolab.github.io/RunTime-Now/rtn-1.5.0.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M13.5 1.8 4.6 13.4c-.4.5 0 1.2.6 1.2h5.6l-1.4 7.2c-.1.7.8 1.1 1.2.5l8.8-11.6c.4-.5 0-1.2-.6-1.2h-5.6l1.4-7.2c.1-.7-.8-1.1-1.1-.5Z' fill='%236C7BFF'/></svg>">
+<style>
+  :root {
+    --ink: #1c1f3a; --muted: #5d6385; --violet: #7B6CFF; --blue: #4FB4FF;
+    --card: rgba(255, 255, 255, 0.72); --line: rgba(120, 130, 220, 0.18);
+    --grad: linear-gradient(100deg, #7B6CFF 0%, #6C8BFF 45%, #4FB4FF 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink);
+    font-family: "Inter", "Adwaita Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(900px 600px at 5% -10%, rgba(184, 166, 255, 0.55), transparent 60%),
+      radial-gradient(900px 700px at 105% 110%, rgba(134, 218, 255, 0.55), transparent 60%),
+      linear-gradient(135deg, #F1EEFF, #E6EBFF 50%, #D9F0FF);
+    min-height: 100vh;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 22px; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; text-decoration: none; }
+  .brand svg { width: 22px; height: 22px; }
+  .links { display: flex; gap: 18px; font-size: 15px; font-weight: 600; }
+  .links a { text-decoration: none; color: var(--muted); }
+  .links a:hover { color: var(--ink); }
+
+  .hero { text-align: center; padding: 40px 0 10px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9); box-shadow: 0 4px 14px rgba(98, 110, 230, 0.14);
+    font-weight: 700; font-size: 13px; letter-spacing: 0.04em;
+  }
+  .pill span, .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  h1 {
+    margin: 26px 0 14px; font-size: clamp(54px, 11vw, 116px); line-height: 0.95;
+    font-weight: 850; letter-spacing: -0.04em;
+  }
+  .lead { max-width: 640px; margin: 0 auto; font-size: clamp(17px, 2.2vw, 20px); line-height: 1.55; color: var(--muted); }
+
+  .install {
+    margin: 34px auto 0; max-width: 860px; display: flex; align-items: center; gap: 12px;
+    background: #11142B; color: #D6DCF5; border-radius: 14px; padding: 8px 8px 8px 20px;
+    box-shadow: 0 20px 50px rgba(70, 80, 190, 0.25);
+    font-family: "JetBrains Mono", "Adwaita Mono", ui-monospace, monospace; font-size: 14.5px;
+  }
+  .install code { flex: 1; overflow-x: auto; white-space: nowrap; text-align: left; padding: 10px 0; }
+  .install .p { color: #7F8CFF; margin-right: 8px; }
+  .install button {
+    flex: none; border: 0; border-radius: 10px; padding: 11px 16px; cursor: pointer;
+    background: var(--grad); color: #fff; font-weight: 700; font-size: 14px;
+  }
+  .sub { margin-top: 12px; font-size: 14px; color: var(--muted); }
+  .sub code { background: rgba(255, 255, 255, 0.7); padding: 2px 7px; border-radius: 6px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 64px 0 28px; }
+  .card {
+    background: var(--card); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 18px; padding: 22px;
+    box-shadow: 0 10px 30px rgba(98, 110, 230, 0.08); backdrop-filter: blur(6px);
+  }
+  .card .icon { font-size: 24px; }
+  .card h3 { margin: 10px 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 15px; }
+
+  .shot { margin: 30px 0; }
+  .shot img { width: 100%; height: auto; display: block; border-radius: 16px; box-shadow: 0 20px 60px rgba(70, 80, 190, 0.18); }
+
+  .code {
+    background: #11142B; color: #D6DCF5; border-radius: 16px; padding: 22px 24px; overflow-x: auto;
+    font-family: "JetBrains Mono", "Adwaita Mono", ui-monospace, monospace; font-size: 14px; line-height: 1.6;
+  }
+  .k { color: #B9A8FF; } .s { color: #5EE3A1; } .f { color: #7FC4FF; } .c { color: #6C7597; }
+  h2 { font-size: 30px; letter-spacing: -0.02em; margin: 56px 0 16px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 16px; overflow: hidden; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line); font-size: 15px; }
+  th { color: var(--muted); font-weight: 600; }
+  th.n { text-align: right; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.me td { font-weight: 700; }
+
+  footer { padding: 48px 0 60px; color: var(--muted); font-size: 14px; text-align: center; }
+  @media (max-width: 640px) { .links a.hide-sm { display: none; } .install { font-size: 13px; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="#">
+        <svg viewBox="0 0 24 24"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7B6CFF"/><stop offset="1" stop-color="#4FB4FF"/></linearGradient></defs><path d="M13.5 1.8 4.6 13.4c-.4.5 0 1.2.6 1.2h5.6l-1.4 7.2c-.1.7.8 1.1 1.2.5l8.8-11.6c.4-.5 0-1.2-.6-1.2h-5.6l1.4-7.2c.1-.7-.8-1.1-1.1-.5Z" fill="url(#g)"/></svg>
+        RunTime-Now
+      </a>
+      <div class="links">
+        <a class="hide-sm" href="https://github.com/ByteForgeStudioLab/RunTime-Now#api-reference">Docs</a>
+        <a class="hide-sm" href="https://github.com/ByteForgeStudioLab/RunTime-Now/blob/main/README.uz.md">O'zbekcha</a>
+        <a href="https://github.com/ByteForgeStudioLab/RunTime-Now/releases">Releases</a>
+        <a href="https://github.com/ByteForgeStudioLab/RunTime-Now">GitHub</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="pill">⚡ <span>VERSION 1.5.0 IS OUT</span></div>
+      <h1><span class="grad">RunTime-Now</span></h1>
+      <p class="lead">A small, fast <b>JavaScript &amp; TypeScript</b> runtime written in C++.
+        One ~3&nbsp;MB binary, TypeScript out of the box, and a Web-standard HTTP server.</p>
+
+      <div class="install">
+        <code><span class="p">$</span><span id="cmd">curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash</span></code>
+        <button id="copy" type="button">Copy</button>
+      </div>
+      <p class="sub">Linux x64 &amp; arm64 · then run <code>rtn --help</code> · upgrade anytime with <code>rtn upgrade</code></p>
+    </section>
+
+    <section class="grid">
+      <div class="card"><div class="icon">🟦</div><h3>TypeScript, natively</h3>
+        <p>Run <code>.ts</code> files directly. Types are stripped in C++ with line numbers preserved, so stack traces point at your source.</p></div>
+      <div class="card"><div class="icon">🌐</div><h3>Web-standard server</h3>
+        <p><code>rtn.serve()</code> with <code>Request</code>, <code>Response</code>, <code>Headers</code> and <code>URL</code>: the same shape as Deno and Bun.</p></div>
+      <div class="card"><div class="icon">🪶</div><h3>Tiny footprint</h3>
+        <p>A static ~3&nbsp;MB binary with no dependencies, ~10&nbsp;ms startup and an HTTP server in ~3&nbsp;MB of RAM.</p></div>
+      <div class="card"><div class="icon">🔄</div><h3>One-command upgrades</h3>
+        <p><code>rtn upgrade</code> downloads the latest release, verifies its SHA-256 and swaps it in atomically.</p></div>
+    </section>
+
+    <h2>Hello, server</h2>
+<pre class="code"><span class="c">// server.ts — run it with: rtn server.ts</span>
+<span class="k">interface</span> Todo { id: <span class="k">number</span>; title: <span class="k">string</span> }
+<span class="k">const</span> todos: Todo[] = [];
+
+rtn.<span class="f">serve</span>({ port: <span class="s">3000</span> }, <span class="k">async</span> (req: Request) =&gt; {
+  <span class="k">if</span> (req.method === <span class="s">"POST"</span>) {
+    todos.<span class="f">push</span>({ id: todos.length + <span class="s">1</span>, ...(<span class="k">await</span> req.<span class="f">json</span>()) });
+    <span class="k">return</span> Response.<span class="f">json</span>(todos.<span class="f">at</span>(-<span class="s">1</span>), { status: <span class="s">201</span> });
+  }
+  <span class="k">return</span> Response.<span class="f">json</span>(todos);
+});</pre>
+
+    <div class="shot"><img src="rtn-install.png" alt="Installing rtn in one line" loading="lazy"></div>
+
+    <h2>Small and quick</h2>
+    <table>
+      <thead><tr><th>Runtime</th><th class="n">Requests/s</th><th class="n">Memory</th><th class="n">Startup</th></tr></thead>
+      <tbody>
+        <tr class="me"><td>⚡ rtn 1.5</td><td class="n">51,751</td><td class="n">3.2 MB</td><td class="n">10 ms</td></tr>
+        <tr><td>Node 24</td><td class="n">55,466</td><td class="n">89.0 MB</td><td class="n">44 ms</td></tr>
+        <tr><td>Bun 1.4</td><td class="n">99,590</td><td class="n">38.8 MB</td><td class="n">2 ms</td></tr>
+        <tr><td>Deno 2.9</td><td class="n">113,984</td><td class="n">43.6 MB</td><td class="n">29 ms</td></tr>
+      </tbody>
+    </table>
+    <p class="sub">"Hello World" HTTP server, HTTP/1.1 keep-alive, 64 connections, same machine. rtn uses the QuickJS-ng interpreter; Bun and Deno use JIT engines.</p>
+
+    <footer>
+      MIT licensed · Built on <a href="https://github.com/quickjs-ng/quickjs">QuickJS-ng</a> ·
+      <a href="https://github.com/ByteForgeStudioLab/RunTime-Now">github.com/ByteForgeStudioLab/RunTime-Now</a>
+    </footer>
+  </div>
+<script>
+  document.getElementById("copy").addEventListener("click", async (e) => {
+    const text = document.getElementById("cmd").textContent;
+    try { await navigator.clipboard.writeText(text); e.target.textContent = "Copied!"; }
+    catch { e.target.textContent = "Select & copy"; }
+    setTimeout(() => (e.target.textContent = "Copy"), 1600);
+  });
+</script>
+</body>
+</html>

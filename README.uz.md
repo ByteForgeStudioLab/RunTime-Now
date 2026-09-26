@@ -7,7 +7,7 @@
 **C++ da yozilgan kichik va tez JavaScript va TypeScript runtime**
 
 `.js` va `.ts` fayllarni ishga tushiring, Web standartidagi `Request` / `Response` bilan HTTP server yozing.
-Hammasi bitta **~2 MB** li dasturda: **~7 ms** da ishga tushadi, HTTP server esa **~6 MB xotira** ishlatadi.
+Hammasi bitta **~3 MB** li dasturda: **~7 ms** da ishga tushadi, HTTP server esa **~6 MB xotira** ishlatadi.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -35,7 +35,7 @@ Listening on http://localhost:3000/
 **O'rnatish** (Linux x64 / arm64):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 ```
 
 ---
@@ -73,8 +73,8 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 
 - 🧩 **Runtime qanday ishlashini o'rganing.** Event loop, modul yuklovchi, HTTP parser va TypeScript
   stripper qisqa, izohlangan va testlangan.
-- 🪶 **Juda yengil.** Bitta ~2 MB li dastur, hech qanday bog'liqliksiz (release'lar to'liq statik),
-  ~7 ms da ishga tushadi, HTTP server ~6 MB xotira ishlatadi.
+- 🪶 **Juda yengil.** Bitta ~3 MB li dastur, hech qanday bog'liqliksiz (to'liq statik),
+  ~10 ms da ishga tushadi, HTTP server ~3 MB xotira ishlatadi.
 - 🟦 **TypeScript darhol ishlaydi.** `tsc` ham, bundler ham, sozlama fayli ham kerak emas. O'rnatilgan
   stripper qator va ustun raqamlarini saqlaydi, shuning uchun xato qaysi qatorda bo'lsa, stack trace ham aynan o'sha `.ts` qatorni ko'rsatadi.
 - 🌐 **Web standartidagi API'lar.** `Request` / `Response` / `Headers` / `URL`: kod Deno va Bun'dagi bilan bir xil shaklda yoziladi.
@@ -95,8 +95,10 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 ## O'rnatish
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 ```
+
+<p align="center"><img src="assets/rtn-install.png" alt="rtn ni bir qatorda o'rnatish" width="720"></p>
 
 O'rnatuvchi protsessoringiz uchun (x64 yoki arm64) release'ni yuklaydi, **SHA-256 bilan tekshiradi**,
 `rtn` ni `~/.rtn/bin` ga qo'yadi va `PATH` ga qo'shadi (bash, zsh yoki fish). Yangi terminal oching:
@@ -111,12 +113,15 @@ Release binary'lari **statik bog'langan**, shuning uchun hech narsa o'rnatmasdan
 
 | Vazifa | Buyruq |
 |---|---|
-| Aniq versiyani o'rnatish | `curl -fsSL …/install.sh \| bash -s v1.5.0` |
-| Boshqa papkaga o'rnatish | `curl -fsSL …/install.sh \| RTN_INSTALL=/opt/rtn bash` |
+| Aniq versiyani o'rnatish | `curl -fsSL …/install \| bash -s v1.5.0` |
+| Boshqa papkaga o'rnatish | `curl -fsSL …/install \| RTN_INSTALL=/opt/rtn bash` |
 | **Eng so'nggi release'ga yangilash** | `rtn upgrade` (yoki `rtn update -r`) |
 | Yangi versiya bor-yo'qligini tekshirish | `rtn upgrade --check` |
 | Aniq versiyaga o'tish | `rtn upgrade --version 1.5.0` |
 | O'chirish | `rm -rf ~/.rtn` va `~/.bashrc` / `~/.zshrc` dagi `# rtn` qatorlarini o'chiring |
+
+Qisqa manzil GitHub Pages orqali ishlaydi; o'sha skript
+`https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh` manzilida ham bor.
 
 `rtn upgrade` xuddi `bun upgrade` kabi ishlaydi: yangi release'ni yuklaydi, uning SHA-256 xeshini e'lon
 qilingan `SHA256SUMS` bilan solishtiradi, yangi binary ishlashini tekshiradi va shundan keyingina uni
@@ -142,6 +147,11 @@ cmake --build build
 ```
 
 > `--recursive` siz clone qilgan bo'lsangiz: `git submodule update --init`.
+>
+> **Maslahat:** GCC 16 hozircha QuickJS interpretatori uchun ancha sekin kod yaratadi (hisob-kitobi
+> og'ir kodda ~2.5 barobar). Distributivingizda GCC 16 bo'lsa, Clang bilan build qiling:
+> `CC=clang CXX=clang++ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release`.
+> Release binary'lari GCC 13 bilan build qilinadi, ularga bu ta'sir qilmaydi.
 
 ### Birinchi ishga tushirish
 
@@ -492,12 +502,13 @@ Hammasi bitta kompyuterda [`tools/loadgen`](tools/loadgen.cpp) bilan o'lchangan:
 
 | Runtime | So'rov/soniya | p99 kechikish | Xotira (RSS) | Ishga tushish |
 |---|---:|---:|---:|---:|
-| **rtn 1.5** | **60 090** | **1.29 ms** | **6.4 MB** | **7 ms** |
-| Node 24 | 63 105 | 1.67 ms | 89.5 MB | 41 ms |
-| Bun 1.4 | 120 591 | 1.18 ms | 38.8 MB | 2 ms |
-| Deno 2.9 | 131 534 | 0.74 ms | 43.9 MB | 28 ms |
+| **rtn 1.5** (release binary) | **51 751** | 3.20 ms | **3.2 MB** | 10 ms |
+| Node 24 | 55 466 | 2.84 ms | 89.0 MB | 44 ms |
+| Bun 1.4 | 99 590 | 1.64 ms | 38.8 MB | 2 ms |
+| Deno 2.9 | 113 984 | 1.24 ms | 43.6 MB | 29 ms |
 
-- **rtn tezlikda Node bilan teng**, p99 kechikishi undan past va **14 barobar kam xotira** ishlatadi.
+- **rtn tezligi Node'nikidan atigi ~10% past**, xotirani esa **28 barobar kam** ishlatadi. (Manbadan Clang bilan
+  build qilingan nusxa ~59 000 so'rov/s ga yetadi; statik release binary hamma joyda ishlashi evaziga biroz tezlikdan voz kechadi.)
 - Bun va Deno taxminan 2 barobar tez, chunki ularning dvigatellarida (JavaScriptCore, V8) JIT kompilyator bor.
   QuickJS esa interpretator. rtn'da har bir so'rov vaqtining asosiy qismi JS bajarishga ketadi,
   C++ tarmoq kodi atigi ~9% ni oladi.

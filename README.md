@@ -7,7 +7,7 @@
 **A small, fast JavaScript & TypeScript runtime written in C++**
 
 Run `.js` and `.ts` files, build HTTP servers with Web-standard `Request` / `Response`,
-all from a single **~2 MB** binary that starts in **~7 ms** and serves HTTP in **~6 MB of RAM**.
+all from a single **~3 MB** binary that starts in **~7 ms** and serves HTTP in **~6 MB of RAM**.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -35,7 +35,7 @@ Listening on http://localhost:3000/
 **Install** (Linux x64 / arm64):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 ```
 
 ---
@@ -73,7 +73,7 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 
 - 🧩 **Learn how a runtime works.** The event loop, module loader, HTTP parser and TypeScript
   stripper are small, commented and tested.
-- 🪶 **Tiny footprint.** A single ~2 MB binary with no dependencies (release builds are fully static), ~7 ms startup and ~6 MB RSS for an HTTP server.
+- 🪶 **Tiny footprint.** A single ~3 MB binary with no dependencies (fully static), ~10 ms startup and ~3 MB RSS for an HTTP server.
 - 🟦 **TypeScript out of the box.** No `tsc`, no bundler, no config. The built-in stripper keeps
   line and column numbers, so stack traces point at your `.ts` source.
 - 🌐 **Web-standard APIs.** `fetch`-style `Request` / `Response` / `Headers` / `URL`, the same code
@@ -95,8 +95,10 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 ## Installation
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 ```
+
+<p align="center"><img src="assets/rtn-install.png" alt="Installing rtn in one line" width="720"></p>
 
 The installer downloads the release for your CPU (x64 or arm64), **verifies its SHA-256 checksum**,
 puts `rtn` in `~/.rtn/bin` and adds it to your `PATH` (bash, zsh or fish). Open a new terminal, then:
@@ -111,12 +113,15 @@ Fedora, Arch, Alpine, …) with nothing else installed.
 
 | Task | Command |
 |---|---|
-| Install a specific version | `curl -fsSL …/install.sh \| bash -s v1.5.0` |
-| Install somewhere else | `curl -fsSL …/install.sh \| RTN_INSTALL=/opt/rtn bash` |
+| Install a specific version | `curl -fsSL …/install \| bash -s v1.5.0` |
+| Install somewhere else | `curl -fsSL …/install \| RTN_INSTALL=/opt/rtn bash` |
 | **Upgrade to the latest release** | `rtn upgrade` (or `rtn update -r`) |
 | Check for a new version | `rtn upgrade --check` |
 | Switch to a specific version | `rtn upgrade --version 1.5.0` |
 | Uninstall | `rm -rf ~/.rtn` and remove the `# rtn` lines from `~/.bashrc` / `~/.zshrc` |
+
+The short URL is served by GitHub Pages; the same script is also at
+`https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh`.
 
 `rtn upgrade` works like `bun upgrade`: it downloads the new release, checks its SHA-256 against the
 published `SHA256SUMS`, makes sure the new binary runs, and only then swaps it in atomically. If
@@ -142,6 +147,11 @@ cmake --build build
 ```
 
 > Already cloned without `--recursive`? Run `git submodule update --init`.
+>
+> **Tip:** GCC 16 currently generates a much slower interpreter loop for QuickJS (about 2.5× on
+> CPU-heavy code). If your distribution ships GCC 16, build with Clang:
+> `CC=clang CXX=clang++ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release`.
+> Release binaries are built with GCC 13 and are not affected.
 
 ### Run something
 
@@ -488,12 +498,13 @@ measured with [`tools/loadgen`](tools/loadgen.cpp) on the same machine:
 
 | Runtime | Requests/s | p99 latency | Memory (RSS) | Startup |
 |---|---:|---:|---:|---:|
-| **rtn 1.5** | **60,090** | **1.29 ms** | **6.4 MB** | **7 ms** |
-| Node 24 | 63,105 | 1.67 ms | 89.5 MB | 41 ms |
-| Bun 1.4 | 120,591 | 1.18 ms | 38.8 MB | 2 ms |
-| Deno 2.9 | 131,534 | 0.74 ms | 43.9 MB | 28 ms |
+| **rtn 1.5** (release binary) | **51,751** | 3.20 ms | **3.2 MB** | 10 ms |
+| Node 24 | 55,466 | 2.84 ms | 89.0 MB | 44 ms |
+| Bun 1.4 | 99,590 | 1.64 ms | 38.8 MB | 2 ms |
+| Deno 2.9 | 113,984 | 1.24 ms | 43.6 MB | 29 ms |
 
-- **rtn matches Node's throughput** with a lower p99 and **14× less memory**.
+- **rtn is within ~10% of Node's throughput** while using **28× less memory**. (A Clang build from
+  source reaches ~59,000 req/s; the static release binary trades a little speed for running everywhere.)
 - Bun and Deno are about 2× faster because their engines (JavaScriptCore, V8) have JIT compilers;
   QuickJS is an interpreter. Most of rtn's time per request is spent running JS, not in the
   C++ networking code (~9%).

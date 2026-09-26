@@ -80,10 +80,15 @@ jobs:
             echo "### Install"
             echo
             echo '```sh'
-            echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | bash"
+            owner="${GITHUB_REPOSITORY_OWNER,,}"; repo="${GITHUB_REPOSITORY#*/}"
+            echo "curl -fsSL https://${owner}.github.io/${repo}/install | bash"
             echo '```'
             echo
             echo 'Already installed? Run `rtn upgrade`.'
+            if [ -f assets/rtn-install.png ]; then
+              echo
+              echo "![Install in one line](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/assets/rtn-install.png)"
+            fi
           } > notes.md
           cat notes.md
 

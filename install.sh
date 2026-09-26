@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # RunTime-Now (rtn) installer
 #
-#   curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+#   curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
+#   (same file: https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh)
 #
 #   ... | bash -s v1.5.0            install a specific version
 #   ./install.sh --binary build/rtn  install a binary you built yourself
