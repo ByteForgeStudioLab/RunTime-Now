@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/rtn-1.5.0.png" alt="RunTime-Now 1.5.0" width="760">
+
 # ⚡ RunTime-Now
 
 **C++ da yozilgan kichik va tez JavaScript va TypeScript runtime**
@@ -141,7 +143,7 @@ rtn --help
 
 ```text
 $ rtn
-RunTime-Now v0.1.0 (QuickJS-ng 0.17.0)
+RunTime-Now v1.5.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const natija = await new Promise((r) => setTimeout(() => r("tayyor"), 100))
 > natija
@@ -450,7 +452,7 @@ Hammasi bitta kompyuterda [`tools/loadgen`](tools/loadgen.cpp) bilan o'lchangan:
 
 | Runtime | So'rov/soniya | p99 kechikish | Xotira (RSS) | Ishga tushish |
 |---|---:|---:|---:|---:|
-| **rtn 0.1** | **60 090** | **1.29 ms** | **6.4 MB** | **7 ms** |
+| **rtn 1.5** | **60 090** | **1.29 ms** | **6.4 MB** | **7 ms** |
 | Node 24 | 63 105 | 1.67 ms | 89.5 MB | 41 ms |
 | Bun 1.4 | 120 591 | 1.18 ms | 38.8 MB | 2 ms |
 | Deno 2.9 | 131 534 | 0.74 ms | 43.9 MB | 28 ms |

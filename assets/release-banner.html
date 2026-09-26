@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- RunTime-Now release banner (900x510, rendered at 2x).
+     Render:
+       google-chrome --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
+         --default-background-color=00000000 --window-size=900,510 \
+         --screenshot=assets/rtn-1.5.0.png "file://$PWD/assets/release-banner.html"
+     Change the version in .title and re-render for the next release. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 900px; height: 510px; background: transparent; overflow: hidden; }
+  .card {
+    position: relative; width: 900px; height: 510px; border-radius: 14px; overflow: hidden;
+    font-family: "Adwaita Sans", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  svg.bg { position: absolute; inset: 0; }
+  .title {
+    position: absolute; left: 0; right: 0; top: 250px; transform: translateY(-50%);
+    text-align: center; font-weight: 850; font-size: 141px; letter-spacing: -0.03em;
+    line-height: 1.1; white-space: nowrap;
+    background: linear-gradient(100deg, #7B6CFF 0%, #6C8BFF 45%, #4FB4FF 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 6px 18px rgba(108, 125, 255, 0.18));
+  }
+  .pill {
+    position: absolute; left: 50%; top: 432px; transform: translate(-50%, -50%);
+    height: 40px; padding: 0 20px 0 15px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(98, 110, 230, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  }
+  .pill svg { width: 16px; height: 16px; display: block; }
+  .pill span {
+    font-weight: 700; font-size: 15px; letter-spacing: 0.02em;
+    background: linear-gradient(90deg, #7466FF, #4FA8FF);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <svg class="bg" width="900" height="510" viewBox="0 0 900 510" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- lavender (top-left) to ice blue (bottom-right) -->
+      <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#F1EEFF"/>
+        <stop offset="0.5" stop-color="#E6EBFF"/>
+        <stop offset="1" stop-color="#D9F0FF"/>
+      </linearGradient>
+      <radialGradient id="orbViolet" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#B8A6FF" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="#B8A6FF" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="orbCyan" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#86DAFF" stop-opacity="0.55"/>
+        <stop offset="1" stop-color="#86DAFF" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="orbWhite" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.75"/>
+        <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+      </radialGradient>
+      <!-- glass rings coming out of the bottom-right corner -->
+      <radialGradient id="ringGlass" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+        <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.32"/>
+      </radialGradient>
+      <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+        <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.15"/>
+      </linearGradient>
+      <!-- faint dot grid, visible in the top-left and fading out -->
+      <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+        <circle cx="11" cy="11" r="1.15" fill="#6F74E8"/>
+      </pattern>
+      <radialGradient id="dotFade" cx="0.12" cy="0.1" r="0.75">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"/>
+        <stop offset="0.6" stop-color="#FFFFFF" stop-opacity="0.25"/>
+        <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+      </radialGradient>
+      <mask id="dotMask"><rect width="900" height="510" fill="url(#dotFade)"/></mask>
+      <filter id="soft"><feGaussianBlur stdDeviation="0.6"/></filter>
+      <filter id="glow"><feGaussianBlur stdDeviation="3"/></filter>
+    </defs>
+
+    <rect width="900" height="510" fill="url(#base)"/>
+
+    <!-- colour orbs -->
+    <circle cx="120" cy="60" r="330" fill="url(#orbViolet)"/>
+    <circle cx="820" cy="470" r="360" fill="url(#orbCyan)"/>
+    <ellipse cx="450" cy="255" rx="420" ry="190" fill="url(#orbWhite)"/>
+
+    <!-- dot grid -->
+    <rect width="900" height="510" fill="url(#dots)" opacity="0.16" mask="url(#dotMask)"/>
+
+    <!-- concentric glass rings, centred off-canvas at the bottom-right -->
+    <g transform="translate(905 560)">
+      <circle r="560" fill="url(#ringGlass)" opacity="0.55"/>
+      <circle r="560" fill="none" stroke="url(#rim)" stroke-width="1.3" filter="url(#soft)"/>
+      <circle r="560" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="8" filter="url(#glow)"/>
+      <circle r="410" fill="url(#ringGlass)" opacity="0.7"/>
+      <circle r="410" fill="none" stroke="url(#rim)" stroke-width="1.2" filter="url(#soft)"/>
+      <circle r="270" fill="url(#ringGlass)" opacity="0.85"/>
+      <circle r="270" fill="none" stroke="url(#rim)" stroke-width="1.1" filter="url(#soft)"/>
+    </g>
+
+    <!-- one small ring echo at the top-left -->
+    <circle cx="-40" cy="-60" r="230" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="1.1" filter="url(#soft)"/>
+  </svg>
+
+  <div class="title">RTN 1.5.0</div>
+
+  <div class="pill">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bolt" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#7B6CFF"/><stop offset="1" stop-color="#4FB4FF"/>
+        </linearGradient>
+      </defs>
+      <path d="M13.5 1.8 4.6 13.4c-.4.5 0 1.2.6 1.2h5.6l-1.4 7.2c-.1.7.8 1.1 1.2.5l8.8-11.6c.4-.5 0-1.2-.6-1.2h-5.6l1.4-7.2c.1-.7-.8-1.1-1.1-.5Z" fill="url(#bolt)"/>
+    </svg>
+    <span>RUNTIME-NOW RELEASE</span>
+  </div>
+</div>
+</body>
+</html>

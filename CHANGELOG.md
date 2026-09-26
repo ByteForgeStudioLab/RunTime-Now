@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0 — 2026-09-25
+## 1.5.0 — 2026-09-26
 
-First public version.
+First public release.
 
 - **Runtime**: ES modules, top-level `await`, event loop (microtasks → `process.nextTick` → timers → epoll I/O), REPL with top-level `await` and TypeScript syntax.
 - **TypeScript**: built-in type stripper written in C++ (positions preserved, `enum`, parameter properties, import elision).
