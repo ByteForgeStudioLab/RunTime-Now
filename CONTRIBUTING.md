@@ -9,7 +9,7 @@ Thanks for your interest! Issues and pull requests are welcome.
 ### Setup
 
 ```sh
-git clone --recursive <repo-url> RunTime-Now
+git clone --recursive https://github.com/ByteForgeStudioLab/RunTime-Now.git
 cd RunTime-Now
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
@@ -40,7 +40,7 @@ Qiziqishingiz uchun rahmat! Issue va pull request'lar qabul qilinadi.
 ### Sozlash
 
 ```sh
-git clone --recursive <repo-url> RunTime-Now
+git clone --recursive https://github.com/ByteForgeStudioLab/RunTime-Now.git
 cd RunTime-Now
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build

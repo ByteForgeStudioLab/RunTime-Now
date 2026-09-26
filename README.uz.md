@@ -7,7 +7,7 @@
 **C++ da yozilgan kichik va tez JavaScript va TypeScript runtime**
 
 `.js` va `.ts` fayllarni ishga tushiring, Web standartidagi `Request` / `Response` bilan HTTP server yozing.
-Hammasi bitta **1.8 MB** li dasturda: **~7 ms** da ishga tushadi, HTTP server esa **~6 MB xotira** ishlatadi.
+Hammasi bitta **~2 MB** li dasturda: **~7 ms** da ishga tushadi, HTTP server esa **~6 MB xotira** ishlatadi.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -32,13 +32,20 @@ $ rtn server.ts
 Listening on http://localhost:3000/
 ```
 
+**O'rnatish** (Linux x64 / arm64):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+```
+
 ---
 
 ## Mundarija
 
 - [Nega RunTime-Now?](#nega-runtime-now)
 - [Imkoniyatlar](#imkoniyatlar)
-- [Tez boshlash](#tez-boshlash)
+- [O'rnatish](#ornatish)
+- [Manbadan build qilish](#manbadan-build-qilish)
 - [Buyruqlar qatori (CLI)](#buyruqlar-qatori-cli)
 - [Misollar](#misollar)
 - [API ma'lumotnomasi](#api-malumotnomasi)
@@ -66,8 +73,8 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 
 - 🧩 **Runtime qanday ishlashini o'rganing.** Event loop, modul yuklovchi, HTTP parser va TypeScript
   stripper qisqa, izohlangan va testlangan.
-- 🪶 **Juda yengil.** Bitta 1.8 MB li dastur (faqat libc/libstdc++ kerak), ~7 ms da ishga tushadi,
-  HTTP server ~6 MB xotira ishlatadi.
+- 🪶 **Juda yengil.** Bitta ~2 MB li dastur, hech qanday bog'liqliksiz (release'lar to'liq statik),
+  ~7 ms da ishga tushadi, HTTP server ~6 MB xotira ishlatadi.
 - 🟦 **TypeScript darhol ishlaydi.** `tsc` ham, bundler ham, sozlama fayli ham kerak emas. O'rnatilgan
   stripper qator va ustun raqamlarini saqlaydi, shuning uchun xato qaysi qatorda bo'lsa, stack trace ham aynan o'sha `.ts` qatorni ko'rsatadi.
 - 🌐 **Web standartidagi API'lar.** `Request` / `Response` / `Headers` / `URL`: kod Deno va Bun'dagi bilan bir xil shaklda yoziladi.
@@ -85,7 +92,37 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 | **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write` …), `rtn:fs` / `node:fs` |
 | **Qulayliklar** | `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
 
-## Tez boshlash
+## O'rnatish
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+```
+
+O'rnatuvchi protsessoringiz uchun (x64 yoki arm64) release'ni yuklaydi, **SHA-256 bilan tekshiradi**,
+`rtn` ni `~/.rtn/bin` ga qo'yadi va `PATH` ga qo'shadi (bash, zsh yoki fish). Yangi terminal oching:
+
+```sh
+rtn --version
+rtn examples/server.ts
+```
+
+Release binary'lari **statik bog'langan**, shuning uchun hech narsa o'rnatmasdan istalgan Linux'da ishlaydi
+(Ubuntu, Debian, Fedora, Arch, Alpine, …).
+
+| Vazifa | Buyruq |
+|---|---|
+| Aniq versiyani o'rnatish | `curl -fsSL …/install.sh \| bash -s v1.5.0` |
+| Boshqa papkaga o'rnatish | `curl -fsSL …/install.sh \| RTN_INSTALL=/opt/rtn bash` |
+| **Eng so'nggi release'ga yangilash** | `rtn upgrade` (yoki `rtn update -r`) |
+| Yangi versiya bor-yo'qligini tekshirish | `rtn upgrade --check` |
+| Aniq versiyaga o'tish | `rtn upgrade --version 1.5.0` |
+| O'chirish | `rm -rf ~/.rtn` va `~/.bashrc` / `~/.zshrc` dagi `# rtn` qatorlarini o'chiring |
+
+`rtn upgrade` xuddi `bun upgrade` kabi ishlaydi: yangi release'ni yuklaydi, uning SHA-256 xeshini e'lon
+qilingan `SHA256SUMS` bilan solishtiradi, yangi binary ishlashini tekshiradi va shundan keyingina uni
+atomik almashtiradi. Biror narsa xato ketsa, joriy `rtn` o'zgarishsiz qoladi.
+
+## Manbadan build qilish
 
 ### Talablar
 
@@ -97,7 +134,7 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 ### Build qilish
 
 ```sh
-git clone --recursive https://github.com/YOUR_USERNAME/RunTime-Now.git
+git clone --recursive https://github.com/ByteForgeStudioLab/RunTime-Now.git
 cd RunTime-Now
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
@@ -114,15 +151,14 @@ cmake --build build
 ./build/rtn examples/server.ts        # keyin brauzerda http://localhost:3000 ni oching
 ```
 
-### `rtn` ni istalgan papkadan ishlatish (ixtiyoriy)
+### O'z build'ingizni `PATH` ga qo'yish (ixtiyoriy)
 
 ```sh
-ln -s "$PWD/build/rtn" ~/.local/bin/rtn   # ~/.local/bin PATH'da bo'lishi kerak
-rtn --help
+./install.sh --binary build/rtn   # ~/.rtn/bin ga nusxalaydi va shell sozlamasini yangilaydi
 ```
 
-> **Eslatma:** `./build/rtn` faqat loyiha papkasidan ishlaydi. Boshqa papkadan to'liq yo'l yozing
-> (`~/.../RunTime-Now/build/rtn fayl.ts`) yoki yuqoridagi symlink'ni qo'ying.
+> **Eslatma:** `./build/rtn` faqat loyiha papkasidan ishlaydi. Istalgan joydan `rtn` deb yozish uchun
+> yuqoridagi buyruqni bir marta ishga tushiring.
 
 ## Buyruqlar qatori (CLI)
 
@@ -132,6 +168,7 @@ rtn --help
 | `rtn run <fayl> [argumentlar...]` | Yuqoridagi bilan bir xil |
 | `rtn -e "<kod>" [argumentlar...]` | Kodni ES modul sifatida bajarish |
 | `rtn strip <fayl.ts>` | TypeScript fayldan qanday JavaScript chiqishini ko'rsatish |
+| `rtn upgrade` / `rtn update -r` | Eng so'nggi release'ga yangilash (`--check`, `--version x.y.z`, `--force`) |
 | `rtn` | REPL (terminalda) yoki stdin'ga yuborilgan skriptni bajarish |
 | `rtn -i` | stdin pipe bo'lsa ham REPL'ni majburan ochish |
 | `rtn -` | Skriptni stdin'dan o'qib bajarish |
@@ -433,6 +470,7 @@ src/
 ├── main.cpp              CLI
 ├── runtime.cpp/.hpp      JS dvigatel, event loop, taymerlar, I/O, ushlanmagan rejection'lar
 ├── repl.cpp              REPL (async eval, ko'p qatorli kiritish, TypeScript)
+├── upgrade.cpp           rtn upgrade: yuklash, SHA-256 tekshiruvi, atomik almashtirish
 ├── modules.cpp/.hpp      Modullarni topish va yuklash
 ├── builtins.cpp          Ichki JS'ni ishga tushishda bajaradi
 ├── util.cpp/.hpp         Yordamchi funksiyalar, Node uslubidagi xatolar
@@ -440,7 +478,9 @@ src/
 ├── js/web.js             URL, URLSearchParams, Headers, Request, Response, TextEncoder/Decoder
 ├── js/http.js            rtn.serve()
 └── bindings/             console, timers, process, fs, encoding, http
-tests/                    Test to'plami (run.sh, cases/, strip/, http_test.py)
+tests/                    Test to'plami (run.sh, cases/, strip/, http_test.py, upgrade_test.sh)
+install.sh                Bir qatorli o'rnatuvchi (curl … | bash)
+.github/workflows/        CI (har bir push) va release (har bir v* teg)
 tools/loadgen.cpp         Benchmark uchun HTTP/1.1 yuk generatori
 third_party/quickjs/      QuickJS-ng (git submodule)
 ```
@@ -481,6 +521,7 @@ tests/run.sh --update  # ataylab o'zgartirishdan keyin kutilgan natijalarni qayt
 | `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 14 ta skript: console formati, event loop tartibi, modullar, fs, process, xatolar, TypeScript, Web API. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
 | `tests/strip/` | TypeScript → JavaScript natijasi belgima-belgi, qatorlar soni saqlanishi |
 | `tests/http_test.py` | Xom socket orqali 27 ta HTTP tekshiruvi: pipelining, chunked body, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 ta parallel so'rov, `stop()` |
+| `tests/upgrade_test.sh` | Soxta release server orqali `install.sh` va `rtn upgrade`: aniq va so'nggi versiya, PATH sozlash, buzilgan checksum, atomik yangilash |
 | CLI + REPL | Argumentlar, stdin skriptlari, `await` bilan REPL sessiyasi |
 
 CI har bir push'da testlarni GCC va Clang bilan ishga tushiradi ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).

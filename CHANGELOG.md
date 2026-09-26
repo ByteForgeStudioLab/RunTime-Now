@@ -9,4 +9,5 @@ First public release.
 - **HTTP server**: `rtn.serve()` with keep-alive, pipelining, chunked bodies, `Expect: 100-continue`, idle/request timeouts and request-size limits.
 - **Web APIs**: `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`.
 - **Node-style APIs**: `console` (incl. `table`, `group`, `count`, `trace`), `process`, `rtn:fs` / `node:fs` (sync).
+- **Install & upgrade**: one-line installer (`curl -fsSL …/install.sh | bash`), `rtn upgrade` / `rtn update -r` with SHA-256 verification, static Linux x64/arm64 release binaries built by GitHub Actions.
 - **Tooling**: `rtn strip` (show TS → JS output), `tools/loadgen` benchmark, test suite + GitHub Actions CI.

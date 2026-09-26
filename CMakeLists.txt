@@ -9,6 +9,11 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# GitHub repository that `rtn upgrade` and install.sh download releases from.
+set(RTN_REPO "ByteForgeStudioLab/RunTime-Now" CACHE STRING "GitHub owner/repo for releases")
+# Release builds (Alpine / musl) link everything statically so one binary runs on any Linux.
+option(RTN_STATIC "Link rtn fully statically" OFF)
+
 # --- JS engine: QuickJS-ng (third_party/quickjs) ---
 set(QJS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 set(QJS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -34,6 +39,7 @@ add_executable(rtn
     src/main.cpp
     src/runtime.cpp
     src/repl.cpp
+    src/upgrade.cpp
     src/modules.cpp
     src/util.cpp
     src/typescript/strip.cpp
@@ -48,7 +54,11 @@ add_executable(rtn
 )
 target_include_directories(rtn PRIVATE src)
 target_link_libraries(rtn PRIVATE qjs)
-target_compile_definitions(rtn PRIVATE RTN_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(rtn PRIVATE RTN_VERSION="${PROJECT_VERSION}" RTN_REPO="${RTN_REPO}")
+if(RTN_STATIC)
+    target_link_options(rtn PRIVATE -static)
+endif()
+install(TARGETS rtn RUNTIME DESTINATION bin)
 target_compile_options(rtn PRIVATE -Wall -Wextra -Wno-missing-field-initializers)
 
 # --- loadgen: small HTTP/1.1 benchmark tool (cmake --build build --target loadgen) ---

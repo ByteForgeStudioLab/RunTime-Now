@@ -4,6 +4,7 @@
 //   rtn run <file>                     same thing
 //   rtn -e "<code>" [args...]          run code from the command line
 //   rtn strip <file.ts>                print the JavaScript produced from a .ts file
+//   rtn upgrade [-r] [--check]         update rtn to the latest release (alias: update)
 //   rtn                                REPL (or run stdin as a script when it's piped)
 
 #include <climits>
@@ -17,6 +18,7 @@
 #include "quickjs.h"
 #include "runtime.hpp"
 #include "typescript/strip.hpp"
+#include "upgrade.hpp"
 #include "util.hpp"
 
 namespace {
@@ -30,6 +32,7 @@ void print_usage() {
         "  rtn run <file> [args...]    Same as above\n"
         "  rtn -e \"<code>\" [args...]   Evaluate code\n"
         "  rtn strip <file.ts>         Print the JavaScript made from a TypeScript file\n"
+        "  rtn upgrade                 Upgrade rtn to the latest release (alias: rtn update -r)\n"
         "  rtn                         Start the REPL (runs stdin as a script if it's piped)\n"
         "  rtn -i                      Force the REPL even when stdin is piped\n"
         "  rtn -                       Run a script read from stdin\n"
@@ -78,6 +81,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     if (cmd == "-i" || cmd == "--interactive") return run_repl_or_stdin(self, true);
+    if (cmd == "upgrade" || cmd == "update") return rtn::run_upgrade(argc - 2, argv + 2, self);
     if (cmd == "-") {
         auto args = make_argv(self, argv + 2, argv + argc);
         rtn::Runtime runtime(static_cast<int>(args.size()), args.data());

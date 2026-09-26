@@ -74,8 +74,12 @@ expect "repl session" "$ROOT/tests/repl.out" "$out"
 if command -v python3 > /dev/null; then
   echo
   if python3 "$ROOT/tests/http_test.py" "$RTN"; then ok "http suite"; else fail "http suite"; fi
+  if command -v curl > /dev/null && command -v tar > /dev/null && command -v sha256sum > /dev/null; then
+    echo
+    if bash "$ROOT/tests/upgrade_test.sh" "$RTN"; then ok "install/upgrade suite"; else fail "install/upgrade suite"; fi
+  fi
 else
-  echo "(python3 not found: skipping HTTP tests)"
+  echo "(python3 not found: skipping HTTP and install/upgrade tests)"
 fi
 
 echo

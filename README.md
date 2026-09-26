@@ -7,7 +7,7 @@
 **A small, fast JavaScript & TypeScript runtime written in C++**
 
 Run `.js` and `.ts` files, build HTTP servers with Web-standard `Request` / `Response`,
-all from a single **1.8 MB** binary that starts in **~7 ms** and serves HTTP in **~6 MB of RAM**.
+all from a single **~2 MB** binary that starts in **~7 ms** and serves HTTP in **~6 MB of RAM**.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -32,13 +32,20 @@ $ rtn server.ts
 Listening on http://localhost:3000/
 ```
 
+**Install** (Linux x64 / arm64):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+```
+
 ---
 
 ## Table of contents
 
 - [Why RunTime-Now?](#why-runtime-now)
 - [Features](#features)
-- [Quick start](#quick-start)
+- [Installation](#installation)
+- [Build from source](#build-from-source)
 - [Command line](#command-line)
 - [Examples](#examples)
 - [API reference](#api-reference)
@@ -66,7 +73,7 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 
 - 🧩 **Learn how a runtime works.** The event loop, module loader, HTTP parser and TypeScript
   stripper are small, commented and tested.
-- 🪶 **Tiny footprint.** A single 1.8 MB binary (needs only libc/libstdc++), ~7 ms startup and ~6 MB RSS for an HTTP server.
+- 🪶 **Tiny footprint.** A single ~2 MB binary with no dependencies (release builds are fully static), ~7 ms startup and ~6 MB RSS for an HTTP server.
 - 🟦 **TypeScript out of the box.** No `tsc`, no bundler, no config. The built-in stripper keeps
   line and column numbers, so stack traces point at your `.ts` source.
 - 🌐 **Web-standard APIs.** `fetch`-style `Request` / `Response` / `Headers` / `URL`, the same code
@@ -85,7 +92,37 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 | **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write`, …), `rtn:fs` / `node:fs` |
 | **Developer experience** | REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
 
-## Quick start
+## Installation
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ByteForgeStudioLab/RunTime-Now/main/install.sh | bash
+```
+
+The installer downloads the release for your CPU (x64 or arm64), **verifies its SHA-256 checksum**,
+puts `rtn` in `~/.rtn/bin` and adds it to your `PATH` (bash, zsh or fish). Open a new terminal, then:
+
+```sh
+rtn --version
+rtn examples/server.ts
+```
+
+Release binaries are **statically linked**, so they run on any Linux distribution (Ubuntu, Debian,
+Fedora, Arch, Alpine, …) with nothing else installed.
+
+| Task | Command |
+|---|---|
+| Install a specific version | `curl -fsSL …/install.sh \| bash -s v1.5.0` |
+| Install somewhere else | `curl -fsSL …/install.sh \| RTN_INSTALL=/opt/rtn bash` |
+| **Upgrade to the latest release** | `rtn upgrade` (or `rtn update -r`) |
+| Check for a new version | `rtn upgrade --check` |
+| Switch to a specific version | `rtn upgrade --version 1.5.0` |
+| Uninstall | `rm -rf ~/.rtn` and remove the `# rtn` lines from `~/.bashrc` / `~/.zshrc` |
+
+`rtn upgrade` works like `bun upgrade`: it downloads the new release, checks its SHA-256 against the
+published `SHA256SUMS`, makes sure the new binary runs, and only then swaps it in atomically. If
+anything fails, your current `rtn` stays untouched.
+
+## Build from source
 
 ### Requirements
 
@@ -97,7 +134,7 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 ### Build
 
 ```sh
-git clone --recursive https://github.com/YOUR_USERNAME/RunTime-Now.git
+git clone --recursive https://github.com/ByteForgeStudioLab/RunTime-Now.git
 cd RunTime-Now
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
@@ -114,11 +151,10 @@ cmake --build build
 ./build/rtn examples/server.ts        # then open http://localhost:3000
 ```
 
-### Use `rtn` from anywhere (optional)
+### Put your build on the `PATH` (optional)
 
 ```sh
-ln -s "$PWD/build/rtn" ~/.local/bin/rtn   # ~/.local/bin must be in your PATH
-rtn --help
+./install.sh --binary build/rtn   # copies it to ~/.rtn/bin and updates your shell config
 ```
 
 ## Command line
@@ -129,6 +165,7 @@ rtn --help
 | `rtn run <file> [args...]` | Same as above |
 | `rtn -e "<code>" [args...]` | Evaluate code as an ES module |
 | `rtn strip <file.ts>` | Print the JavaScript produced from a TypeScript file |
+| `rtn upgrade` / `rtn update -r` | Upgrade to the latest release (`--check`, `--version x.y.z`, `--force`) |
 | `rtn` | Start the REPL (on a terminal) or run a script piped into stdin |
 | `rtn -i` | Force the REPL even when stdin is piped |
 | `rtn -` | Run a script read from stdin |
@@ -429,6 +466,7 @@ src/
 ├── main.cpp              CLI
 ├── runtime.cpp/.hpp      JS engine, event loop, timers, I/O, unhandled rejections
 ├── repl.cpp              REPL (async eval, multi-line input, TypeScript)
+├── upgrade.cpp           rtn upgrade: download, verify SHA-256, atomic replace
 ├── modules.cpp/.hpp      Module resolution and loading
 ├── builtins.cpp          Runs the embedded JS at startup
 ├── util.cpp/.hpp         Helpers, Node-style errors
@@ -436,7 +474,9 @@ src/
 ├── js/web.js             URL, URLSearchParams, Headers, Request, Response, TextEncoder/Decoder
 ├── js/http.js            rtn.serve()
 └── bindings/             console, timers, process, fs, encoding, http
-tests/                    Test suite (run.sh, cases/, strip/, http_test.py)
+tests/                    Test suite (run.sh, cases/, strip/, http_test.py, upgrade_test.sh)
+install.sh                One-line installer (curl … | bash)
+.github/workflows/        CI (every push) and release (every v* tag)
 tools/loadgen.cpp         HTTP/1.1 load generator used for the benchmarks
 third_party/quickjs/      QuickJS-ng (git submodule)
 ```
@@ -477,6 +517,7 @@ tests/run.sh --update  # regenerate expected outputs after an intentional change
 | `tests/cases/` | 14 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, process, errors, TypeScript, Web APIs. Several outputs are **identical to Node or Deno** |
 | `tests/strip/` | Exact TypeScript → JavaScript output, and that line numbers are preserved |
 | `tests/http_test.py` | 27 HTTP checks over raw sockets: pipelining, chunked bodies, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 concurrent requests, graceful `stop()` |
+| `tests/upgrade_test.sh` | `install.sh` and `rtn upgrade` against a fake release server: pinned and latest installs, PATH setup, tampered checksums, atomic upgrade |
 | CLI + REPL | Arguments, stdin scripts, REPL session with `await` |
 
 CI runs the suite with GCC and Clang on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
