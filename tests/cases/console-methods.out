@@ -1,0 +1,31 @@
+Group
+  inside
+    deeper
+outside
+default: 1
+default: 2
+x: 1
+default: 1
+┌─────────┬───┬─────┬──────┐
+│ (index) │ a │ b   │ c    │
+├─────────┼───┼─────┼──────┤
+│ 0       │ 1 │ 'x' │      │
+│ 1       │ 2 │     │ true │
+└─────────┴───┴─────┴──────┘
+┌─────────┬────────┐
+│ (index) │ Values │
+├─────────┼────────┤
+│ 0       │ 'p'    │
+│ 1       │ 'q'    │
+└─────────┴────────┘
+┌─────────┬───┐
+│ (index) │ b │
+├─────────┼───┤
+│ 0       │ 2 │
+└─────────┴───┘
+{ d: [ 1, { e: 2 } ] }
+info
+debug
+to stderr
+warn to stderr
+Assertion failed: math is broken

@@ -1,0 +1,3 @@
+Uncaught Error: failed after 3 tries
+    at connect (<root>/tests/cases/ts-error-position.ts:6:35)
+    at <anonymous> (<root>/tests/cases/ts-error-position.ts:9:1)

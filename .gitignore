@@ -1,0 +1,18 @@
+# build output
+build*/
+compile_commands.json
+.cache/
+
+# editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# debugging leftovers
+vgcore.*
+core
+core.*
+*.log
+perf.data*
+callgrind.out*

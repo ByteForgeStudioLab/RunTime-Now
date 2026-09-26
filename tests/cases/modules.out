@@ -1,0 +1,6 @@
+Ali user 2 1 Salom, World! 3.14159 { name: 'rtn', debug: true }
+function true function
+true true true
+dynamic import: Salom, lazy!
+missing module: Cannot find module './does-not-exist.js'
+Cannot resolve 'some-npm-package': npm packages (bare specifiers) are not supported yet

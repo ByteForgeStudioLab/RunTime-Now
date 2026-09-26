@@ -1,0 +1,14 @@
+;                                   
+import { value } from "./b";                                                     
+import { named } from "./c";                                     
+import * as ns from "./d";
+import "./side-effect";
+;                            
+;                  
+;                             
+;                                             
+;                                              
+;                     
+export { value };                        
+;                                 
+const x                 = value(named, ns);

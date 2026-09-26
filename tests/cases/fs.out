@@ -1,0 +1,21 @@
+read missing -> ENOENT | open | ENOENT: no such file or directory, open '/no/such/file'
+read dir -> EISDIR | read | EISDIR: illegal operation on a directory, read
+mkdir -> ok
+mkdir again -> EEXIST | mkdir | EEXIST: file already exists, mkdir '<dir>'
+mkdir -p -> <dir>/a
+write -> ok
+append -> ok
+read text -> salom dunyo
+read bytes -> 115,97,108
+write bytes -> ok
+size -> 3
+rename -> ok
+copy -> ok
+readdir -> a,a.txt,c.bin,d.txt
+stat dir -> true,false,true,number
+rm dir w/o recursive -> ERR_FS_EISDIR | rm | Path is a directory: rm returned EISDIR (is a directory) <dir>
+rm missing -> ENOENT | lstat | ENOENT: no such file or directory, lstat '<dir>/nope'
+rm missing force -> ok
+write into missing dir -> ENOENT | open | ENOENT: no such file or directory, open '/no/such/dir/x'
+rm -r -> ok
+exists after -> false

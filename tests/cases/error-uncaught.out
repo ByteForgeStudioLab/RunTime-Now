@@ -1,0 +1,10 @@
+before
+Uncaught TypeError: something broke
+    at inner (<root>/tests/cases/error-uncaught.js:1:72)
+    at outer (<root>/tests/cases/error-uncaught.js:2:20)
+    at <anonymous> (<root>/tests/cases/error-uncaught.js:4:1) {
+  [cause]: Error: root cause
+    at inner (<root>/tests/cases/error-uncaught.js:1:72)
+    at outer (<root>/tests/cases/error-uncaught.js:2:20)
+    at <anonymous> (<root>/tests/cases/error-uncaught.js:4:1)
+}

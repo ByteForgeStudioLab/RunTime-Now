@@ -1,0 +1,3 @@
+caught: handled later
+Uncaught (in promise) Error: nobody catches this
+    at <anonymous> (<root>/tests/cases/unhandled-rejection.js:5:20)

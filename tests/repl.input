@@ -1,0 +1,17 @@
+1 + 2
+let x = 5
+x * 2
+const obj = { a: [1, 2], b: "text" }
+obj
+const later = await new Promise((r) => setTimeout(() => r("awaited"), 20))
+later
+function typed(a: number): number {
+  return a + 1
+}
+typed(41)
+_
+missingVariable
+"still running"
+.help
+.exit
+console.log("not reached")

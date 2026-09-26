@@ -1,0 +1,1 @@
+Uncaught SyntaxError: <root>/tests/cases/ts-unsupported.ts:2:1: namespaces with runtime code are not supported (use ES modules instead)

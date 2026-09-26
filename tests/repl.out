@@ -1,0 +1,13 @@
+3
+10
+{ a: [ 1, 2 ], b: 'text' }
+'awaited'
+42
+42
+Uncaught ReferenceError: missingVariable is not defined
+    at <eval> (<repl>:1:1)
+'still running'
+.exit     Exit the REPL (or press Ctrl+D)
+.help     Show this help
+_         The result of the last expression
+Top-level await and TypeScript syntax are supported.

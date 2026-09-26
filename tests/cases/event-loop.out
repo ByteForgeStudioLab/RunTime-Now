@@ -1,0 +1,14 @@
+sync 1
+sync 2
+promise
+microtask
+nextTick
+timeout 0 (a)
+timeout 0 (b)
+interval 1
+interval 2
+interval 3
+timeout 80
+after await
+timer body
+promise inside timer
