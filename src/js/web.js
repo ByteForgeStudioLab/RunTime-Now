@@ -640,11 +640,30 @@
 
   const NULL_BODY_STATUS = [101, 103, 204, 205, 304];
 
+  let makeResponse;  // ({ status, statusText, headers, body, url, redirected, type }) -> Response
+
   class Response extends Body {
     #status = 200;
     #statusText = "";
     #headers;
     #type = "default";
+    #url = "";
+    #redirected = false;
+
+    static {
+      // For fetch(): any status the server sent, no validation of our own parser's output.
+      makeResponse = (init) => {
+        const r = new Response(null);
+        r.#status = init.status;
+        r.#statusText = init.statusText;
+        r.#headers = init.headers;
+        r.#url = init.url;
+        r.#redirected = init.redirected;
+        r.#type = init.type;
+        setBodyData(r, init.body);
+        return r;
+      };
+    }
 
     constructor(body = null, init = {}) {
       super();
@@ -677,15 +696,15 @@
     get ok() { return this.#status >= 200 && this.#status <= 299; }
     get headers() { return this.#headers; }
     get type() { return this.#type; }
-    get url() { return ""; }
-    get redirected() { return false; }
+    get url() { return this.#url; }
+    get redirected() { return this.#redirected; }
 
     clone() {
       if (this.bodyUsed) throw new TypeError("Response.clone: Body has already been consumed.");
-      const r = new Response(null, { status: this.#status, statusText: this.#statusText, headers: this.#headers });
-      setBodyData(r, bodyData(this));
-      r.#type = this.#type;
-      return r;
+      return makeResponse({
+        status: this.#status, statusText: this.#statusText, headers: new Headers(this.#headers),
+        body: bodyData(this), url: this.#url, redirected: this.#redirected, type: this.#type,
+      });
     }
 
     static json(data, init = {}) {
@@ -712,7 +731,7 @@
     [INSPECT]() {
       return {
         status: this.#status, statusText: this.#statusText, ok: this.ok, headers: this.#headers,
-        bodyUsed: this.bodyUsed, type: this.#type,
+        bodyUsed: this.bodyUsed, type: this.#type, redirected: this.#redirected, url: this.#url,
       };
     }
   }
@@ -724,10 +743,14 @@
   const TRUSTED = Symbol("trusted request");
   const NORMALIZED_METHODS = ["DELETE", "GET", "HEAD", "OPTIONS", "POST", "PUT"];
 
+  const REDIRECT_MODES = ["follow", "error", "manual"];
+
   class Request extends Body {
     #method = "GET";
     #url = "";
     #headers;
+    #signal = null;  // created on first access when none was given
+    #redirect = "follow";
 
     constructor(input, init = {}) {
       super();
@@ -763,17 +786,33 @@
       }
       setBodyData(this, data);
       if (contentType && !this.#headers.has("content-type")) this.#headers.set("content-type", contentType);
+
+      const signal = init.signal !== undefined ? init.signal : source ? source.#signal : null;
+      if (signal !== null && !(signal instanceof AbortSignal)) {
+        throw new TypeError("Failed to construct 'Request': member signal is not of type AbortSignal.");
+      }
+      this.#signal = signal;
+      const redirect = init.redirect ?? source?.redirect ?? "follow";
+      if (!REDIRECT_MODES.includes(redirect)) {
+        throw new TypeError(`Failed to construct 'Request': '${redirect}' is not a valid redirect mode.`);
+      }
+      this.#redirect = redirect;
     }
 
     get method() { return this.#method; }
     get url() { return this.#url; }
     get headers() { return this.#headers; }
+    get redirect() { return this.#redirect; }
+    get signal() { return (this.#signal ??= new AbortController().signal); }
 
     clone() {
       if (this.bodyUsed) throw new TypeError("Request.clone: Body has already been consumed.");
-      return new Request(TRUSTED, {
+      const r = new Request(TRUSTED, {
         url: this.#url, method: this.#method, headers: new Headers(this.#headers), body: bodyData(this),
       });
+      r.#signal = this.#signal;
+      r.#redirect = this.#redirect;
+      return r;
     }
 
     get [Symbol.toStringTag]() { return "Request"; }
@@ -793,6 +832,7 @@
   internal.setUrlQuery = setUrlQuery;
   internal.headerList = headerList;
   internal.bodyData = bodyData;
+  internal.makeResponse = makeResponse;
   internal.makeHeaders = headersFromList;
   internal.makeRequest = (url, method, headers, body) =>
     new Request(TRUSTED, { url, method, headers, body });

@@ -8,7 +8,8 @@
 // where <releases> = https://github.com/<RTN_REPO>/releases
 // (override with the RTN_RELEASES_URL environment variable, e.g. for a mirror).
 //
-// Downloads use curl (or wget), extraction uses tar. The archive is verified
+// Downloads use curl (or wget), extraction uses tar. On a terminal every step
+// is animated (src/term.cpp): spinners, a live progress bar with speed and ETA. The archive is verified
 // against SHA256SUMS before anything is replaced, and the new binary is moved
 // into place with an atomic rename().
 
@@ -16,6 +17,10 @@
 
 #include <array>
 #include <cctype>
+#include <chrono>
+#include <csignal>
+#include <ctime>
+#include <functional>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -33,6 +38,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+
+#include "term.hpp"
 
 extern char** environ;
 
@@ -145,6 +152,11 @@ std::optional<std::string> sha256_file(const std::string& path) {
 // Running helper programs (curl / wget / tar) without a shell
 // ---------------------------------------------------------------------------
 
+constexpr int kInterrupted = -2;  // "exit code" when the user pressed Ctrl+C
+volatile sig_atomic_t g_interrupted = 0;
+
+void on_interrupt(int) { g_interrupted = 1; }
+
 bool have(const char* prog) {
     const char* path = std::getenv("PATH");
     std::stringstream ss(path ? path : "/usr/bin:/bin");
@@ -155,51 +167,231 @@ bool have(const char* prog) {
     return false;
 }
 
-// Runs a program and waits. Returns its exit code (or -1). stdout is captured when `out` is set.
-int run(const std::vector<std::string>& args, std::string* out = nullptr, bool quiet_stderr = false) {
+// Starts a program. stdout goes to a pipe (`out_fd`), or nowhere special; stderr may
+// go to a file. Returns the pid, or -1.
+pid_t spawn(const std::vector<std::string>& args, int* out_fd, const char* stderr_file) {
     std::vector<char*> argv;
     for (const auto& a : args) argv.push_back(const_cast<char*>(a.c_str()));
     argv.push_back(nullptr);
 
     int pipefd[2] = {-1, -1};
+    if (out_fd && pipe2(pipefd, O_CLOEXEC) != 0) return -1;
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
-    if (out) {
-        if (pipe(pipefd) != 0) return -1;
-        posix_spawn_file_actions_adddup2(&actions, pipefd[1], STDOUT_FILENO);
-        posix_spawn_file_actions_addclose(&actions, pipefd[0]);
-        posix_spawn_file_actions_addclose(&actions, pipefd[1]);
-    }
-    if (quiet_stderr) posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+    if (out_fd) posix_spawn_file_actions_adddup2(&actions, pipefd[1], STDOUT_FILENO);
+    if (stderr_file) posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, stderr_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 
-    pid_t pid;
+    pid_t pid = -1;
     int rc = posix_spawnp(&pid, argv[0], &actions, nullptr, argv.data(), environ);
     posix_spawn_file_actions_destroy(&actions);
-    if (out) close(pipefd[1]);
-    if (rc != 0) {
-        if (out) close(pipefd[0]);
-        return -1;
+    if (out_fd) {
+        close(pipefd[1]);
+        if (rc != 0) close(pipefd[0]);
+        else *out_fd = pipefd[0];
     }
+    return rc == 0 ? pid : -1;
+}
+
+int exit_code(int status) { return WIFEXITED(status) ? WEXITSTATUS(status) : -1; }
+
+// Waits for a child. On Ctrl+C the child (in our process group) gets the signal too.
+int wait_child(pid_t pid) {
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno != EINTR) return -1;
+    }
+    return g_interrupted ? kInterrupted : exit_code(status);
+}
+
+// Waits for a child while calling draw(frame) about 20 times a second.
+int wait_animated(pid_t pid, const std::function<void(int)>& draw) {
+    for (int frame = 0;; ++frame) {
+        int status = 0;
+        pid_t r = waitpid(pid, &status, WNOHANG);
+        if (r == pid) return g_interrupted ? kInterrupted : exit_code(status);
+        if (r < 0 && errno != EINTR) return -1;
+        if (g_interrupted) {
+            kill(pid, SIGTERM);
+            wait_child(pid);
+            return kInterrupted;
+        }
+        draw(frame);
+        timespec ts{0, 50 * 1000 * 1000};
+        nanosleep(&ts, nullptr);
+    }
+}
+
+// Runs a program and waits. Returns its exit code (or -1). stdout is captured when `out` is set.
+int run(const std::vector<std::string>& args, std::string* out = nullptr, bool quiet_stderr = false) {
+    int fd = -1;
+    pid_t pid = spawn(args, out ? &fd : nullptr, quiet_stderr ? "/dev/null" : nullptr);
+    if (pid < 0) return -1;
     if (out) {
         char buf[4096];
         ssize_t n;
-        while ((n = read(pipefd[0], buf, sizeof buf)) > 0) out->append(buf, static_cast<size_t>(n));
-        close(pipefd[0]);
+        while ((n = read(fd, buf, sizeof buf)) != 0) {
+            if (n > 0) out->append(buf, static_cast<size_t>(n));
+            else if (errno != EINTR) break;
+        }
+        close(fd);
     }
-    int status = 0;
-    while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
-    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    return wait_child(pid);
 }
 
-// Downloads url -> file with curl, falling back to wget. Returns false on any HTTP/network error.
-bool download(const std::string& url, const std::string& file) {
-    if (have("curl")) return run({"curl", "-fsSL", "--retry", "2", "-o", file, url}, nullptr, true) == 0;
-    if (have("wget")) return run({"wget", "-q", "-O", file, url}, nullptr, true) == 0;
-    return false;
+// ---------------------------------------------------------------------------
+// Steps and progress (animated on a terminal, plain lines otherwise)
+// ---------------------------------------------------------------------------
+
+constexpr size_t kLabelWidth = 20;
+
+std::string pad(std::string s) {
+    size_t w = term::visible_width(s);
+    if (w < kLabelWidth) s.append(kLabelWidth - w, ' ');
+    return s;
 }
 
-std::optional<std::string> fetch_text(const std::string& url, const std::string& tmp_file) {
-    if (!download(url, tmp_file)) return std::nullopt;
+void step_done(const std::string& label, const std::string& detail) {
+    if (!term::fancy()) return;
+    term::redraw_line("  " + std::string(GREEN) + "✓" + RESET + " " + pad(label) + DIM + detail + RESET + "\n");
+}
+
+int fail_step(const std::string& label, const std::string& msg) {
+    if (term::fancy()) term::redraw_line("  " + std::string(RED) + "✗" + RESET + " " + label + "\n");
+    return fail(msg);
+}
+
+// Shows a spinner next to `label` until the child exits.
+int spin(pid_t pid, const std::string& label) {
+    if (!term::fancy()) return wait_child(pid);
+    return wait_animated(pid, [&](int frame) {
+        term::redraw_line("  " + term::spinner(frame) + " " + label + DIM + " …" + RESET);
+    });
+}
+
+bool use_curl() { return have("curl"); }
+
+// What went wrong, from curl's / wget's exit code.
+std::string download_error(int code) {
+    if (code == kInterrupted) return "cancelled";
+    if (use_curl()) {
+        switch (code) {
+            case 6: return "could not resolve the host (are you offline?)";
+            case 7: return "could not connect to the server";
+            case 22: return "the server answered with an error (not found?)";
+            case 28: return "the connection timed out";
+            case 35: case 60: return "a TLS/SSL error occurred";
+            case 52: case 56: return "the connection was interrupted";
+        }
+    } else {
+        switch (code) {
+            case 4: return "network failure (are you offline?)";
+            case 5: return "a TLS/SSL error occurred";
+            case 8: return "the server answered with an error (not found?)";
+        }
+    }
+    return "exit code " + std::to_string(code);
+}
+
+// Response headers (curl -D / wget -S) -> Content-Length of the final response, or -1.
+double content_length(const std::string& headers_file) {
+    std::ifstream in(headers_file);
+    double total = -1;
+    for (std::string line; std::getline(in, line);) {
+        size_t i = line.find_first_not_of(" \t");
+        if (i == std::string::npos) continue;
+        std::string l = line.substr(i);
+        for (char& ch : l) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (l.starts_with("http/")) total = -1;  // a redirect: the next response counts
+        else if (l.starts_with("content-length:")) total = std::atof(l.c_str() + 15);
+    }
+    return total;
+}
+
+double file_size(const std::string& path) {
+    struct stat st{};
+    return stat(path.c_str(), &st) == 0 ? static_cast<double>(st.st_size) : 0;
+}
+
+struct Download {
+    int code = 0;
+    double bytes = 0;
+    double seconds = 0;
+};
+
+// Downloads url -> file with curl, falling back to wget. On a terminal, `label` gets a live
+// progress bar (`label` empty = a spinner with `spinner_label`).
+Download download(const std::string& url, const std::string& file, const std::string& label = "",
+                  const std::string& spinner_label = "") {
+    std::string headers = file + ".headers";
+    std::vector<std::string> cmd;
+    if (use_curl()) cmd = {"curl", "-fsSL", "--retry", "2", "--connect-timeout", "15", "-D", headers, "-o", file, url};
+    else cmd = {"wget", "-nv", "-S", "--timeout=15", "--tries=3", "-O", file, url};  // -S: headers on stderr
+
+    Download d;
+    auto start = std::chrono::steady_clock::now();
+    pid_t pid = spawn(cmd, nullptr, use_curl() ? "/dev/null" : headers.c_str());
+    if (pid < 0) {
+        d.code = -1;
+        return d;
+    }
+    auto elapsed = [&] { return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(); };
+
+    if (!term::fancy()) {
+        d.code = wait_child(pid);
+    } else if (label.empty()) {
+        d.code = spin(pid, spinner_label);
+    } else {
+        double speed = 0, last_bytes = 0, last_t = 0;
+        d.code = wait_animated(pid, [&](int frame) {
+            double now = elapsed();
+            double got = file_size(file);
+            double total = content_length(headers);
+            if (now - last_t >= 0.25) {  // smoothed transfer rate
+                double inst = (got - last_bytes) / (now - last_t);
+                speed = speed == 0 ? inst : speed * 0.6 + inst * 0.4;
+                last_bytes = got;
+                last_t = now;
+            }
+            double fraction = total > 0 ? std::min(got / total, 1.0) : -1;
+
+            std::string stats;
+            char pct[16];
+            if (fraction >= 0) {
+                std::snprintf(pct, sizeof pct, "%3.0f%%", fraction * 100);
+                stats = std::string(BOLD) + pct + RESET + "  " + term::format_bytes(got) + DIM + " / " +
+                        term::format_bytes(total) + RESET;
+            } else {
+                stats = term::format_bytes(got);
+            }
+            // Room is reserved for the widest stats, so the bar doesn't jump as numbers change.
+            constexpr int kStatsWidth = 22;  // "100%  12.3 MB / 12.3 MB"
+            constexpr int kSpeedWidth = 12;  // "  12.3 MB/s"
+            constexpr int kEtaWidth = 12;    // "  ETA 10.0s"
+            int room = term::columns() - 1 - (2 + 2 + static_cast<int>(kLabelWidth) + 2) - kStatsWidth;
+            bool show_speed = room - kSpeedWidth >= 12;
+            if (show_speed) room -= kSpeedWidth;
+            bool show_eta = show_speed && room - kEtaWidth >= 16;
+            if (show_eta) room -= kEtaWidth;
+            std::string extra;
+            if (speed > 0 && show_speed) extra = std::string(DIM) + "  " + term::format_bytes(speed) + "/s" + RESET;
+            if (speed > 0 && show_eta && fraction >= 0 && fraction < 1) {
+                extra += std::string(DIM) + "  ETA " + term::format_seconds((total - got) / speed) + RESET;
+            }
+            int bar = std::clamp(room, 8, 34);
+            term::redraw_line("  " + term::spinner(frame) + " " + pad(label) + term::progress_bar(fraction, bar, frame) +
+                              "  " + stats + extra);
+        });
+    }
+    d.seconds = elapsed();
+    d.bytes = file_size(file);
+    return d;
+}
+
+std::optional<std::string> fetch_text(const std::string& url, const std::string& tmp_file, int* code,
+                                      const std::string& spinner_label = "") {
+    Download d = download(url, tmp_file, "", spinner_label);
+    *code = d.code;
+    if (d.code != 0) return std::nullopt;
     std::ifstream in(tmp_file);
     std::stringstream ss;
     ss << in.rdbuf();
@@ -298,10 +490,33 @@ struct TempDir {
     }
 };
 
+// Hides the cursor while animating; restores it however run_upgrade() returns.
+struct CursorGuard {
+    CursorGuard() { term::hide_cursor(); }
+    ~CursorGuard() { term::show_cursor(); }
+};
+
+// The final message, with a border whose colors flow around it for a moment.
+void celebrate(const std::vector<std::string>& lines) {
+    std::string first = term::box(lines, 0);
+    std::fputs(first.c_str(), stdout);
+    std::fflush(stdout);
+    if (!term::fancy()) return;
+    int height = static_cast<int>(lines.size()) + 2;
+    for (int frame = 1; frame <= 24 && !g_interrupted; ++frame) {
+        timespec ts{0, 40 * 1000 * 1000};
+        nanosleep(&ts, nullptr);
+        std::printf("\x1b[%dA%s", height, term::box(lines, frame).c_str());
+        std::fflush(stdout);
+    }
+}
+
 }  // namespace
 
 int run_upgrade(int argc, char** argv, const std::string& self_path) {
-    g_color = isatty(STDOUT_FILENO) && isatty(STDERR_FILENO);
+    term::init(isatty(STDOUT_FILENO) && isatty(STDERR_FILENO));
+    g_color = term::color();
+    const bool fancy = term::fancy();
 
     bool check_only = false, force = false;
     std::string wanted;  // empty = latest
@@ -337,24 +552,58 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
     std::string releases = env_url && *env_url ? env_url : std::string("https://github.com/") + RTN_REPO + "/releases";
     while (!releases.empty() && releases.back() == '/') releases.pop_back();
 
+    // Ctrl+C: stop the download, clean up, leave the current rtn alone.
+    struct sigaction sa{};
+    sa.sa_handler = on_interrupt;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, nullptr);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGHUP, &sa, nullptr);
+    auto cancelled = [] {
+        if (term::fancy()) term::redraw_line("  " + std::string(RED) + "✗" + RESET + " Cancelled\n");
+        else std::printf("\n");
+        fail("cancelled — nothing was changed");
+        return 130;
+    };
+
     TempDir tmp;
     if (tmp.path.empty()) return fail("could not create a temporary directory");
+    CursorGuard cursor;
+    if (fancy) std::printf("\n  %s  %supgrade%s\n\n", term::gradient_text("⚡ RunTime-Now").c_str(), DIM, RESET);
 
     // 1. Which version?
     std::string current = RTN_VERSION;
     std::string target = wanted;
     if (target.empty()) {
-        auto latest = fetch_text(releases + "/latest/download/VERSION", tmp.path + "/VERSION");
+        int code = 0;
+        auto latest = fetch_text(releases + "/latest/download/VERSION", tmp.path + "/VERSION", &code,
+                                 "Checking for updates");
+        if (code == kInterrupted) return cancelled();
         if (!latest || !parse_version(strip_v(*latest))) {
-            return fail("could not find the latest release at " + releases + " (check your internet connection)");
+            return fail_step("Checking for updates", "could not find the latest release at " + releases + " (" +
+                                                         (latest ? "unexpected VERSION file" : download_error(code)) + ")");
         }
         target = strip_v(*latest);
+        step_done("Latest release", "v" + target + "  (you have v" + current + ")");
+    } else {
+        step_done("Target version", "v" + target + "  (you have v" + current + ")");
     }
     auto cur_v = parse_version(current);
     auto tgt_v = parse_version(target);
 
     if (check_only) {
-        if (wanted.empty() && cur_v && tgt_v && *tgt_v > *cur_v) {
+        bool newer = wanted.empty() && cur_v && tgt_v && *tgt_v > *cur_v;
+        if (fancy) {
+            std::printf("\n");
+            if (newer) {
+                celebrate({std::string(BOLD) + "A new version of rtn is available" + RESET,
+                           std::string(DIM) + current + RESET + "  →  " + term::gradient_text(target),
+                           std::string("Run ") + CYAN + "rtn upgrade" + RESET + " to install it"});
+            } else {
+                celebrate({std::string(GREEN) + "✓ " + RESET + "rtn " + current + " is up to date",
+                           std::string(DIM) + "latest release: " + target + RESET});
+            }
+        } else if (newer) {
             std::printf("A new version of rtn is available: %s%s%s → %s%s%s\nRun %srtn upgrade%s to install it.\n",
                         DIM, current.c_str(), RESET, GREEN, target.c_str(), RESET, CYAN, RESET);
         } else {
@@ -363,12 +612,13 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
         return 0;
     }
     if (!force && target == current) {
-        std::printf("%srtn is already on version %s%s%s — nothing to do.\n", GREEN, BOLD, current.c_str(), RESET);
+        std::printf("%s%srtn is already on version %s%s%s — nothing to do.\n", fancy ? "\n  " : "", GREEN, BOLD,
+                    current.c_str(), RESET);
         return 0;
     }
     if (!force && wanted.empty() && cur_v && tgt_v && *tgt_v < *cur_v) {
-        std::printf("You're on rtn %s, which is newer than the latest release (%s). Nothing to do.\n",
-                    current.c_str(), target.c_str());
+        std::printf("%sYou're on rtn %s, which is newer than the latest release (%s). Nothing to do.\n",
+                    fancy ? "\n  " : "", current.c_str(), target.c_str());
         return 0;
     }
 
@@ -381,15 +631,27 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
     // 2. Download and verify.
     std::string name = "rtn-" + *asset;
     std::string base = releases + "/download/v" + target;
-    std::printf("%sUpgrading rtn%s %s → %s%s%s %s(%s)%s\n", BOLD, RESET, current.c_str(), GREEN, target.c_str(), RESET,
-                DIM, asset->c_str(), RESET);
-    std::printf("  %sdownloading%s %s/%s.tar.gz\n", DIM, RESET, base.c_str(), name.c_str());
-    std::string archive = tmp.path + "/" + name + ".tar.gz";
-    if (!download(base + "/" + name + ".tar.gz", archive)) {
-        return fail("download failed: version " + target + " may not exist, or has no " + *asset + " build");
+    if (!fancy) {
+        std::printf("%sUpgrading rtn%s %s → %s%s%s %s(%s)%s\n", BOLD, RESET, current.c_str(), GREEN, target.c_str(),
+                    RESET, DIM, asset->c_str(), RESET);
+        std::printf("  %sdownloading%s %s/%s.tar.gz\n", DIM, RESET, base.c_str(), name.c_str());
     }
-    auto sums = fetch_text(base + "/SHA256SUMS", tmp.path + "/SHA256SUMS");
-    if (!sums) return fail("could not download SHA256SUMS for version " + target);
+    std::string archive = tmp.path + "/" + name + ".tar.gz";
+    Download d = download(base + "/" + name + ".tar.gz", archive, "Downloading");
+    if (d.code == kInterrupted) return cancelled();
+    if (d.code != 0) {
+        return fail_step("Downloading", "download failed: " + download_error(d.code) + ". Version " + target +
+                                            " may not exist, or has no " + *asset + " build");
+    }
+    step_done("Downloaded", name + ".tar.gz · " + term::format_bytes(d.bytes) + " in " +
+                                term::format_seconds(d.seconds) + " · " +
+                                term::format_bytes(d.bytes / std::max(d.seconds, 0.001)) + "/s");
+
+    int code = 0;
+    auto sums = fetch_text(base + "/SHA256SUMS", tmp.path + "/SHA256SUMS", &code, "Verifying checksum");
+    if (code == kInterrupted) return cancelled();
+    if (!sums) return fail_step("Verifying checksum", "could not download SHA256SUMS for version " + target +
+                                                          " (" + download_error(code) + ")");
     std::string expected;
     std::istringstream lines(*sums);
     for (std::string line; std::getline(lines, line);) {
@@ -401,38 +663,55 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
     }
     auto actual = sha256_file(archive);
     if (expected.empty() || !actual || *actual != expected) {
-        return fail("checksum mismatch for " + name + ".tar.gz — the download is corrupted or was tampered with. "
-                    "Nothing was changed.");
+        return fail_step("Verifying checksum",
+                         "checksum mismatch for " + name + ".tar.gz — the download is corrupted or was tampered with. "
+                         "Nothing was changed.");
     }
-    std::printf("  %sverified%s  sha256 %s…\n", DIM, RESET, actual->substr(0, 16).c_str());
+    if (!fancy) std::printf("  %sverified%s  sha256 %s…\n", DIM, RESET, actual->substr(0, 16).c_str());
+    step_done("Verified", "sha256 " + actual->substr(0, 16) + "…");
 
     // 3. Unpack and smoke-test the new binary.
-    if (run({"tar", "-xzf", archive, "-C", tmp.path}) != 0) return fail("could not unpack " + archive);
+    pid_t tar = spawn({"tar", "-xzf", archive, "-C", tmp.path}, nullptr, nullptr);
+    int tar_code = tar < 0 ? -1 : spin(tar, "Unpacking");
+    if (tar_code == kInterrupted) return cancelled();
+    if (tar_code != 0) return fail_step("Unpacking", "could not unpack " + archive);
     std::string fresh = tmp.path + "/" + name + "/rtn";
-    if (access(fresh.c_str(), F_OK) != 0) return fail("the archive does not contain " + name + "/rtn");
+    if (access(fresh.c_str(), F_OK) != 0) return fail_step("Unpacking", "the archive does not contain " + name + "/rtn");
     chmod(fresh.c_str(), 0755);
     std::string out;
     if (run({fresh, "--version"}, &out) != 0 || out.find(target) == std::string::npos) {
-        return fail("the downloaded binary does not run on this system (got: " + trim(out) + ")");
+        return fail_step("Testing", "the downloaded binary does not run on this system (got: " + trim(out) + ")");
     }
+    step_done("Unpacked & tested", trim(out));
+    if (g_interrupted) return cancelled();
 
     // 4. Swap it in: copy next to the current binary, then rename() over it (atomic).
+    signal(SIGINT, SIG_IGN);  // too late to cancel halfway: it's a copy and a rename
+    signal(SIGTERM, SIG_IGN);
     fs::path staged = exe.parent_path() / (".rtn-upgrade-" + std::to_string(getpid()));
     std::error_code ec;
     fs::copy_file(fresh, staged, fs::copy_options::overwrite_existing, ec);
     if (ec) {
-        return fail("cannot write to " + exe.parent_path().string() + " (" + ec.message() + ").\n"
-                    "       Try: sudo rtn upgrade");
+        return fail_step("Installing", "cannot write to " + exe.parent_path().string() + " (" + ec.message() + ").\n"
+                                       "       Try: sudo rtn upgrade");
     }
     chmod(staged.c_str(), 0755);
     if (std::rename(staged.c_str(), exe.c_str()) != 0) {
         std::string why = std::strerror(errno);
         fs::remove(staged, ec);
-        return fail("cannot replace " + exe.string() + " (" + why + "). Try: sudo rtn upgrade");
+        return fail_step("Installing", "cannot replace " + exe.string() + " (" + why + "). Try: sudo rtn upgrade");
     }
-
-    std::printf("%s✓%s Upgraded to %srtn %s%s — %s\n", GREEN, RESET, BOLD, target.c_str(), RESET, exe.c_str());
-    std::printf("  What's new: https://github.com/%s/releases/tag/v%s\n", RTN_REPO, target.c_str());
+    std::string notes = "https://github.com/" + std::string(RTN_REPO) + "/releases/tag/v" + target;
+    if (!fancy) {
+        std::printf("%s✓%s Upgraded to %srtn %s%s — %s\n", GREEN, RESET, BOLD, target.c_str(), RESET, exe.c_str());
+        std::printf("  What's new: %s\n", notes.c_str());
+        return 0;
+    }
+    step_done("Installed", exe.string());
+    std::printf("\n");
+    celebrate({std::string(GREEN) + "✓ " + RESET + BOLD + "rtn " + target + " is ready" + RESET + DIM + "   (was v" +
+                   current + ")" + RESET,
+               std::string(DIM) + "What's new  " + RESET + CYAN + notes + RESET});
     return 0;
 }
 

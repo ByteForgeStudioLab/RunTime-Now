@@ -137,7 +137,7 @@ public:
         if (!JS_IsObject(v)) return to_string(ctx_, v);
 
         if (JS_IsFunction(ctx_, v)) return st_.special(format_function(v));
-        if (JS_IsError(v)) return format_error(v, depth, indent);
+        if (JS_IsError(v) || constructor_name(ctx_, v) == "DOMException") return format_error(v, depth, indent);
         if (JS_IsRegExp(v)) return st_.red(to_string(ctx_, v));
         if (JS_IsDate(v)) return st_.magenta(call_method_string(v, "toISOString"));
 
@@ -183,7 +183,9 @@ public:
 
     // Error: message\n    at ...  { code: 'ENOENT', [cause]: ... }
     std::string format_error(JSValueConst err, int depth = 0, int indent = 0) {
-        std::string text = to_string(ctx_, err);
+        std::string text = JS_IsError(err)  // else a DOMException, shown the way Node does
+            ? to_string(ctx_, err)
+            : "DOMException [" + get_string_prop(ctx_, err, "name") + "]: " + get_string_prop(ctx_, err, "message");
         std::string stack = clean_stack(get_string_prop(ctx_, err, "stack"));
         if (!stack.empty()) text += "\n" + stack;
         if (depth > kMaxDepth) return text;

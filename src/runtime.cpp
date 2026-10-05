@@ -1,11 +1,17 @@
 #include "runtime.hpp"
 
 #include <algorithm>
+#include <condition_variable>
 #include <cstdio>
+#include <deque>
 #include <filesystem>
 #include <csignal>
 #include <iostream>
+#include <mutex>
+#include <system_error>
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
+#include <thread>
 #include <unistd.h>
 
 #include "bindings/bindings.hpp"
@@ -15,6 +21,50 @@
 namespace fs = std::filesystem;
 
 namespace rtn {
+
+namespace {
+// Same default as libuv's thread pool.
+constexpr int kMaxWorkerThreads = 4;
+// epoll data for the thread pool's eventfd; ids from add_io() start at 1.
+constexpr uint64_t kWorkPoolIoId = 0;
+}  // namespace
+
+// State shared between the event loop and the worker threads. Workers are
+// detached and hold a shared_ptr, so a lookup that's still running when the
+// process ends can't touch freed memory (or write to a reused fd).
+struct Runtime::WorkPool {
+    std::mutex mu;
+    std::condition_variable cv;
+    std::deque<std::pair<uint64_t, std::function<void()>>> queue;
+    std::vector<uint64_t> finished;  // ids whose `work` has returned
+    int event_fd = -1;               // written by workers to wake up epoll
+    int threads = 0;
+    int idle = 0;
+    bool stopping = false;
+
+    ~WorkPool() {
+        if (event_fd >= 0) close(event_fd);
+    }
+
+    static void worker(std::shared_ptr<WorkPool> pool) {
+        std::unique_lock lock(pool->mu);
+        while (true) {
+            ++pool->idle;
+            pool->cv.wait(lock, [&] { return pool->stopping || !pool->queue.empty(); });
+            --pool->idle;
+            if (pool->stopping) return;
+            auto [id, work] = std::move(pool->queue.front());
+            pool->queue.pop_front();
+            lock.unlock();
+            work();
+            work = nullptr;  // free captures outside the lock
+            lock.lock();
+            pool->finished.push_back(id);
+            uint64_t one = 1;
+            [[maybe_unused]] ssize_t n = write(pool->event_fd, &one, sizeof one);
+        }
+    }
+};
 
 Runtime::Runtime(int argc, char** argv) : argv_(argv, argv + argc) {
     std::signal(SIGPIPE, SIG_IGN);  // writing to a closed socket must not kill us
@@ -35,6 +85,16 @@ Runtime::Runtime(int argc, char** argv) : argv_(argv, argv + argc) {
 
 Runtime::~Runtime() {
     for (auto& hook : shutdown_hooks_) hook();
+    // Work still running in the pool: let its owner free what it holds.
+    auto pending = std::move(work_done_);
+    work_done_.clear();
+    for (auto& [id, done] : pending) done(true);
+    pending.clear();
+    if (pool_) {
+        std::lock_guard lock(pool_->mu);
+        pool_->stopping = true;
+        pool_->cv.notify_all();
+    }
     run_deferred();
     for (auto& [id, t] : timers_) free_timer(t);
     timers_.clear();
@@ -161,7 +221,8 @@ bool Runtime::run_event_loop() {
             timer_queue_.pop();
         }
         bool has_timers = !timer_queue_.empty();
-        if (!has_timers && io_handlers_.empty() && refs_ == 0) return true;
+        bool timers_keep_alive = timers_.size() + native_timers_.size() > unref_timers_.size();
+        if (!timers_keep_alive && io_handlers_.empty() && work_done_.empty() && refs_ == 0) return true;
 
         int timeout_ms = -1;  // no timers: wait for I/O forever
         if (has_timers) {
@@ -179,6 +240,10 @@ bool Runtime::poll_io(int timeout_ms) {
     int n = epoll_wait(epoll_fd_, events, 128, timeout_ms);
     if (n < 0) return errno == EINTR;
     for (int i = 0; i < n; ++i) {
+        if (events[i].data.u64 == kWorkPoolIoId) {
+            if (!run_finished_work() && errors_fatal_) return false;
+            continue;
+        }
         // Look the handler up by id: an earlier event in this batch may have closed it.
         auto it = io_handlers_.find(events[i].data.u64);
         if (it == io_handlers_.end()) continue;
@@ -209,6 +274,60 @@ void Runtime::modify_io(uint64_t id, int fd, uint32_t events) {
 void Runtime::remove_io(uint64_t id, int fd) {
     epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
     io_handlers_.erase(id);
+}
+
+void Runtime::queue_work(std::function<void()> work, std::function<void(bool)> done) {
+    if (!pool_) {
+        pool_ = std::make_shared<WorkPool>();
+        pool_->event_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        epoll_event ev{};
+        ev.events = EPOLLIN;
+        ev.data.u64 = kWorkPoolIoId;
+        epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, pool_->event_fd, &ev);
+    }
+    uint64_t id = next_work_id_++;
+    work_done_[id] = std::move(done);
+    std::unique_lock lock(pool_->mu);
+    pool_->queue.emplace_back(id, std::move(work));
+    if (pool_->queue.size() > static_cast<size_t>(pool_->idle) && pool_->threads < kMaxWorkerThreads) {
+        try {
+            std::thread(WorkPool::worker, pool_).detach();
+            ++pool_->threads;
+        } catch (const std::system_error&) {
+            if (pool_->threads == 0) {  // no thread at all: do the work right here
+                auto job = std::move(pool_->queue.back());
+                pool_->queue.pop_back();
+                lock.unlock();
+                job.second();
+                lock.lock();
+                pool_->finished.push_back(job.first);
+                uint64_t one = 1;
+                [[maybe_unused]] ssize_t n = write(pool_->event_fd, &one, sizeof one);
+                return;
+            }
+        }
+    }
+    pool_->cv.notify_one();
+}
+
+bool Runtime::run_finished_work() {
+    uint64_t count;
+    [[maybe_unused]] ssize_t n = read(pool_->event_fd, &count, sizeof count);
+    std::vector<uint64_t> ids;
+    {
+        std::lock_guard lock(pool_->mu);
+        ids.swap(pool_->finished);
+    }
+    for (uint64_t id : ids) {
+        auto it = work_done_.find(id);
+        if (it == work_done_.end()) continue;
+        auto done = std::move(it->second);
+        work_done_.erase(it);
+        done(false);
+        if (!drain_microtasks() && errors_fatal_) return false;
+        run_deferred();
+    }
+    return true;
 }
 
 void Runtime::run_deferred() {
@@ -267,6 +386,7 @@ bool Runtime::run_due_timers() {
         if (auto nt = native_timers_.find(entry.id); nt != native_timers_.end()) {
             auto fn = std::move(nt->second);
             native_timers_.erase(nt);
+            unref_timers_.erase(entry.id);
             fn();
             if (!drain_microtasks() && errors_fatal_) return false;
             run_deferred();
@@ -286,6 +406,7 @@ bool Runtime::run_due_timers() {
         } else {
             free_timer(t);
             timers_.erase(it);
+            unref_timers_.erase(entry.id);
         }
 
         JSValue ret = JS_Call(ctx_, cb, JS_UNDEFINED, static_cast<int>(args.size()), args.data());
@@ -321,6 +442,11 @@ void Runtime::clear_timer(int64_t id) {
     if (it == timers_.end()) return;
     free_timer(it->second);
     timers_.erase(it);  // the stale queue entry is skipped later
+    unref_timers_.erase(id);
+}
+
+void Runtime::unref_timer(int64_t id) {
+    if (timers_.contains(id) || native_timers_.contains(id)) unref_timers_.insert(id);
 }
 
 void Runtime::free_timer(Timer& t) {

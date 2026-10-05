@@ -35,6 +35,15 @@ JSValue js_clear_timer(JSContext* ctx, JSValueConst, int argc, JSValueConst* arg
     return JS_UNDEFINED;
 }
 
+// unrefTimer(id): the timer won't keep the process alive (for AbortSignal.timeout).
+JSValue js_unref_timer(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    int64_t id = 0;
+    if (argc > 0 && JS_IsNumber(argv[0]) && JS_ToInt64(ctx, &id, argv[0]) == 0) {
+        Runtime::from(ctx)->unref_timer(id);
+    }
+    return JS_UNDEFINED;
+}
+
 const JSCFunctionListEntry kTimerFuncs[] = {
     JS_CFUNC_MAGIC_DEF("setTimeout", 2, js_set_timer, 0),
     JS_CFUNC_MAGIC_DEF("setInterval", 2, js_set_timer, 1),
@@ -43,6 +52,10 @@ const JSCFunctionListEntry kTimerFuncs[] = {
 };
 
 }  // namespace
+
+void add_timer_natives(JSContext* ctx, JSValueConst native) {
+    JS_SetPropertyStr(ctx, native, "unrefTimer", JS_NewCFunction(ctx, js_unref_timer, "unrefTimer", 1));
+}
 
 void install_timers(JSContext* ctx) {
     JSValue global = JS_GetGlobalObject(ctx);

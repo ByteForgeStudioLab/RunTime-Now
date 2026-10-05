@@ -1,0 +1,27 @@
+[
+  [ 'fn', 'ping', true, 2 ],
+  [ 'object', true ],
+  'once',
+  'dup',
+  [ 'fn', 'ping', true, 2 ],
+  [ 'object', true ]
+]
+dispatch returned false true
+after dispatch 0 null true
+passive listener can't cancel: true
+stopImmediatePropagation: [ 1, 2 ]
+{ n: 1 } z false false number
+subclass got hi true
+TypeError: The "event" argument must be an instance of Event
+AbortController { signal: AbortSignal { aborted: false } }
+onabort: abort true
+listener: reason is AbortError
+true true
+throwIfAborted: AbortError This operation was aborted
+AbortSignal.abort: why
+AbortSignal.any (already aborted): true 1
+AbortSignal.any follows its sources: 42
+new AbortSignal(): Illegal constructor
+y fired
+AbortSignal.timeout: TimeoutError - The operation was aborted due to timeout
+done
