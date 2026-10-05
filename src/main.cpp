@@ -39,8 +39,17 @@ void print_usage() {
         "\n"
         "Options:\n"
         "  -h, --help                  Show this help\n"
-        "  -v, --version               Show version\n",
-        RTN_VERSION);
+        "  -v, --version               Show version\n"
+        "\n"
+        "Built-in modules:\n"
+        "  node:fs, node:fs/promises, node:path   (also rtn:..., or without a prefix)\n"
+        "\n"
+        "Globals:\n"
+        "  fetch, Request, Response, Headers, URL, AbortController, EventTarget,\n"
+        "  crypto, structuredClone, navigator, TextEncoder, TextDecoder, rtn.serve()\n"
+        "\n"
+        "Docs: https://github.com/%s#readme\n",
+        RTN_VERSION, RTN_REPO);
 }
 
 // Absolute path of the running binary (for process.argv[0] / process.execPath).

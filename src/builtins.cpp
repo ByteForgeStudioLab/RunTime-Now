@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <unistd.h>
 
 #include "bindings/bindings.hpp"
 #include "embedded_js.hpp"
@@ -19,6 +20,12 @@ namespace rtn {
 namespace {
 // internal.modules: { "path": {...}, "fs/promises": {...} }, set by src/js/modules.js.
 JSValue g_modules = JS_UNDEFINED;
+
+// cpuCount() -> online CPUs (navigator.hardwareConcurrency)
+JSValue js_cpu_count(JSContext* ctx, JSValueConst, int, JSValueConst*) {
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    return JS_NewInt32(ctx, n > 0 ? static_cast<int32_t>(n) : 1);
+}
 }  // namespace
 
 JSValue builtin_module_exports(JSContext* ctx, const std::string& name) {
@@ -35,6 +42,7 @@ void install_builtins(JSContext* ctx) {
     add_crypto_natives(ctx, native);
     add_fs_natives(ctx, native);
     JS_SetPropertyStr(ctx, native, "version", JS_NewString(ctx, RTN_VERSION));
+    JS_SetPropertyStr(ctx, native, "cpuCount", JS_NewCFunction(ctx, js_cpu_count, "cpuCount", 0));
     JSValue internal = JS_NewObject(ctx);
 
     for (size_t i = 0; i < kEmbeddedJsCount; ++i) {
