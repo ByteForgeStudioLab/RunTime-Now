@@ -11,9 +11,20 @@
 
 #include "bindings/bindings.hpp"
 #include "embedded_js.hpp"
+#include "runtime.hpp"
 #include "util.hpp"
 
 namespace rtn {
+
+namespace {
+// internal.modules: { "path": {...}, "fs/promises": {...} }, set by src/js/modules.js.
+JSValue g_modules = JS_UNDEFINED;
+}  // namespace
+
+JSValue builtin_module_exports(JSContext* ctx, const std::string& name) {
+    if (!JS_IsObject(g_modules)) return JS_UNDEFINED;
+    return JS_GetPropertyStr(ctx, g_modules, name.c_str());
+}
 
 void install_builtins(JSContext* ctx) {
     JSValue native = JS_NewObject(ctx);
@@ -21,6 +32,8 @@ void install_builtins(JSContext* ctx) {
     add_timer_natives(ctx, native);
     add_http_natives(ctx, native);
     add_fetch_natives(ctx, native);
+    add_crypto_natives(ctx, native);
+    add_fs_natives(ctx, native);
     JS_SetPropertyStr(ctx, native, "version", JS_NewString(ctx, RTN_VERSION));
     JSValue internal = JS_NewObject(ctx);
 
@@ -42,6 +55,11 @@ void install_builtins(JSContext* ctx) {
         JS_FreeValue(ctx, ret);
         JS_FreeValue(ctx, fn);
     }
+    g_modules = JS_GetPropertyStr(ctx, internal, "modules");
+    Runtime::from(ctx)->on_shutdown([ctx] {
+        JS_FreeValue(ctx, g_modules);
+        g_modules = JS_UNDEFINED;
+    });
     JS_FreeValue(ctx, internal);
     JS_FreeValue(ctx, native);
 }

@@ -88,6 +88,10 @@ const char* errno_name(int err) {
 }
 
 JSValue throw_errno(JSContext* ctx, int err, const char* syscall, const std::string& path) {
+    return JS_Throw(ctx, errno_error(ctx, err, syscall, path));
+}
+
+JSValue errno_error(JSContext* ctx, int err, const char* syscall, const std::string& path) {
     // Same wording as Node (libuv), e.g. "no such file or directory".
     std::string desc;
     switch (err) {
@@ -108,7 +112,7 @@ JSValue throw_errno(JSContext* ctx, int err, const char* syscall, const std::str
     JS_DefinePropertyValueStr(ctx, e, "errno", JS_NewInt32(ctx, -err), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(ctx, e, "syscall", JS_NewString(ctx, syscall), JS_PROP_C_W_E);
     if (!path.empty()) JS_DefinePropertyValueStr(ctx, e, "path", JS_NewString(ctx, path.c_str()), JS_PROP_C_W_E);
-    return JS_Throw(ctx, e);
+    return e;
 }
 
 }  // namespace rtn

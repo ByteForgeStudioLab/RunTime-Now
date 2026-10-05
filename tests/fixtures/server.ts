@@ -1,7 +1,7 @@
 // Server used by tests/http_test.py
 const port = Number(process.env.PORT);
 const server = rtn.serve(
-  { port, hostname: "127.0.0.1", keepAliveTimeout: 400, requestTimeout: 800, onListen() { console.log("ready"); } },
+  { port, hostname: "127.0.0.1", keepAliveTimeout: 400, requestTimeout: 800, onListen({ port }) { console.log(`ready ${port}`); } },
   async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     switch (url.pathname) {

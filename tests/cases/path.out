@@ -1,0 +1,12 @@
+/a/c/d.txt a/b/ y.tar
+/base/y ../../d a/c
+/a .gz  false
+{
+  root: '/',
+  dir: '/home/user',
+  base: 'file.txt',
+  ext: '.txt',
+  name: 'file'
+} /tmp/f.js
+/ : true true
+ERR_INVALID_ARG_TYPE The "path" argument must be of type string. Received type number (1)

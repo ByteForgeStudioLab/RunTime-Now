@@ -24,6 +24,8 @@ set(RTN_JS_FILES
     ${CMAKE_SOURCE_DIR}/src/js/events.js
     ${CMAKE_SOURCE_DIR}/src/js/web.js
     ${CMAKE_SOURCE_DIR}/src/js/fetch.js
+    ${CMAKE_SOURCE_DIR}/src/js/crypto.js
+    ${CMAKE_SOURCE_DIR}/src/js/modules.js
     ${CMAKE_SOURCE_DIR}/src/js/http.js
 )
 string(REPLACE ";" "|" RTN_JS_ARG "${RTN_JS_FILES}")
@@ -53,6 +55,7 @@ add_executable(rtn
     src/bindings/encoding.cpp
     src/bindings/http.cpp
     src/bindings/fetch.cpp
+    src/bindings/crypto.cpp
     src/builtins.cpp
     ${CMAKE_BINARY_DIR}/embedded_js.cpp
 )
