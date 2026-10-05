@@ -21,7 +21,9 @@ add_subdirectory(third_party/quickjs EXCLUDE_FROM_ALL)
 
 # --- JS parts of the runtime, embedded into the binary ---
 set(RTN_JS_FILES
+    ${CMAKE_SOURCE_DIR}/src/js/events.js
     ${CMAKE_SOURCE_DIR}/src/js/web.js
+    ${CMAKE_SOURCE_DIR}/src/js/fetch.js
     ${CMAKE_SOURCE_DIR}/src/js/http.js
 )
 string(REPLACE ";" "|" RTN_JS_ARG "${RTN_JS_FILES}")
@@ -50,11 +52,13 @@ add_executable(rtn
     src/bindings/fs.cpp
     src/bindings/encoding.cpp
     src/bindings/http.cpp
+    src/bindings/fetch.cpp
     src/builtins.cpp
     ${CMAKE_BINARY_DIR}/embedded_js.cpp
 )
 target_include_directories(rtn PRIVATE src)
-target_link_libraries(rtn PRIVATE qjs)
+find_package(Threads REQUIRED)
+target_link_libraries(rtn PRIVATE qjs Threads::Threads)
 target_compile_definitions(rtn PRIVATE RTN_VERSION="${PROJECT_VERSION}" RTN_REPO="${RTN_REPO}")
 if(RTN_STATIC)
     target_link_options(rtn PRIVATE -static)

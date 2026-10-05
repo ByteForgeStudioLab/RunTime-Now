@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <queue>
 #include <string>
 #include <vector>
@@ -61,7 +63,18 @@ public:
     void clear_timer(int64_t id);
     // One-shot timer for C++ code (e.g. HTTP idle timeouts).
     int64_t add_native_timer(int64_t delay_ms, std::function<void()> fn);
-    void cancel_native_timer(int64_t id) { native_timers_.erase(id); }
+    void cancel_native_timer(int64_t id) {
+        native_timers_.erase(id);
+        unref_timers_.erase(id);
+    }
+    // The timer still fires, but doesn't keep the process alive (Node's timer.unref()).
+    void unref_timer(int64_t id);
+
+    // --- thread pool (DNS lookups for fetch, fs/promises) ---
+    // Runs `work` on a background thread, then `done(false)` on the event loop thread.
+    // `work` must not touch the JS engine. If the runtime shuts down first, `done(true)`
+    // runs instead (so it can free the JSValues it holds). Pending work keeps the loop alive.
+    void queue_work(std::function<void()> work, std::function<void(bool cancelled)> done);
 
     // Makes run_event_loop() return at its next iteration (REPL .exit / Ctrl+D).
     void request_stop() { stop_requested_ = true; }
@@ -96,6 +109,8 @@ private:
     // Waits up to timeout_ms for I/O and dispatches it. Returns false on a fatal error.
     bool poll_io(int timeout_ms);
     void run_deferred();
+    // Calls `done` for work the thread pool has finished. Returns false on a fatal error.
+    bool run_finished_work();
     bool report_unhandled_rejections();
     void free_timer(Timer& t);
 
@@ -107,6 +122,11 @@ private:
     std::unordered_map<uint64_t, IoHandler*> io_handlers_;
     std::vector<std::function<void()>> deferred_;
     std::vector<std::function<void()>> shutdown_hooks_;
+
+    struct WorkPool;  // runtime.cpp; shared with the worker threads, which outlive us if busy
+    std::shared_ptr<WorkPool> pool_;
+    std::unordered_map<uint64_t, std::function<void(bool)>> work_done_;
+    uint64_t next_work_id_ = 1;
 
     JSRuntime* rt_ = nullptr;
     JSContext* ctx_ = nullptr;
@@ -123,6 +143,7 @@ private:
     std::priority_queue<TimerEntry, std::vector<TimerEntry>, std::greater<>> timer_queue_;
     std::map<int64_t, Timer> timers_;
     std::map<int64_t, std::function<void()>> native_timers_;
+    std::unordered_set<int64_t> unref_timers_;
     std::vector<Timer> ticks_;  // pending process.nextTick callbacks (interval_ms unused)
     bool stop_requested_ = false;
     int refs_ = 0;

@@ -1,0 +1,27 @@
+200 true OK application/json { method: 'GET', agent: 'rtn', q: '1' }
+POST: 6 text/plain;charset=UTF-8 héllo
+Request object: application/x-www-form-urlencoded;charset=UTF-8 a=1&b=x+y
+POST without body: 0
+302: 200 true <base>/json?q=redirected { method: 'GET', agent: 'rtn', q: 'redirected' }
+303 turns PUT into GET: 200 <base>/echo ""
+manual: 302 <base>/json?q=redirected
+redirect: error -> fetch failed | unexpected redirect to <base>/json?q=redirected
+loop -> fetch failed | redirect count exceeded
+bytes: Uint8Array(4) [ 0, 1, 2, 255 ]
+204: 204 ""
+HEAD 404: 404 Nowhere 8 ""
+abort: AbortError
+timeout: TimeoutError - The operation was aborted due to timeout
+already aborted: AbortError
+TypeError: fetch failed | ERR_TLS_NOT_SUPPORTED
+TypeError: fetch failed | URL scheme "ftp" is not supported
+TypeError: Invalid URL: '/relative'
+refused: fetch failed | ECONNREFUSED connect connect ECONNREFUSED 127.0.0.1:<port>
+data: base64: text/plain Hello, World!
+data: text: text/plain;charset=US-ASCII a b😀
+50 parallel: 50 true
+basic <base>/json {
+  connection: 'close',
+  'content-length': '39',
+  'content-type': 'application/json'
+}

@@ -21,6 +21,8 @@ JSModuleDef* create_fs_module(JSContext* ctx, const char* name);
 
 // Low-level functions handed to the embedded JS (never visible to user code).
 void add_encoding_natives(JSContext* ctx, JSValueConst native);
+void add_timer_natives(JSContext* ctx, JSValueConst native);
 void add_http_natives(JSContext* ctx, JSValueConst native);
+void add_fetch_natives(JSContext* ctx, JSValueConst native);
 
 }  // namespace rtn

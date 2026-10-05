@@ -18,7 +18,9 @@ namespace rtn {
 void install_builtins(JSContext* ctx) {
     JSValue native = JS_NewObject(ctx);
     add_encoding_natives(ctx, native);
+    add_timer_natives(ctx, native);
     add_http_natives(ctx, native);
+    add_fetch_natives(ctx, native);
     JS_SetPropertyStr(ctx, native, "version", JS_NewString(ctx, RTN_VERSION));
     JSValue internal = JS_NewObject(ctx);
 
