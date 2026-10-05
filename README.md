@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="assets/rtn-1.5.0.png" alt="RunTime-Now 1.5.0" width="760">
+<img src="assets/rtn-1.6.0.png" alt="RunTime-Now 1.6.0" width="760">
 
 # ⚡ RunTime-Now
 
 **A small, fast JavaScript & TypeScript runtime written in C++**
 
-Run `.js` and `.ts` files, build HTTP servers with Web-standard `Request` / `Response`,
+Run `.js` and `.ts` files, build HTTP servers and clients with Web-standard `fetch` / `Request` / `Response`,
 all from a single **~3 MB** binary that starts in **~7 ms** and serves HTTP in **~6 MB of RAM**.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -57,6 +57,10 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
   - [File system: `rtn:fs`](#file-system-rtnfs)
   - [HTTP server: `rtn.serve()`](#http-server-rtnserve)
   - [Web APIs](#web-apis)
+  - [fetch()](#fetch)
+  - [Events and cancellation](#events-and-cancellation)
+  - [crypto and structuredClone](#crypto-and-structuredclone)
+  - [`node:path` and `node:fs/promises`](#nodepath-and-nodefspromises)
 - [TypeScript](#typescript)
 - [Architecture](#architecture)
 - [Performance](#performance)
@@ -88,9 +92,10 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 | **Modules** | ES modules, relative imports with extension resolution, JSON imports, `import "./x.js"` → `x.ts`, dynamic `import()`, `import.meta` |
 | **Event loop** | Microtasks → `process.nextTick` → timers → **epoll** I/O, with Node-compatible ordering |
 | **HTTP server** | `rtn.serve()`: HTTP/1.1, keep-alive, pipelining, chunked bodies, `Expect: 100-continue`, idle and request timeouts, size limits |
-| **Web APIs** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `atob`/`btoa`, `performance.now()` |
-| **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write`, …), `rtn:fs` / `node:fs` |
-| **Developer experience** | REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
+| **HTTP client** | **`fetch()`** with redirects, `AbortSignal` timeouts, `data:` URLs and Node-style errors |
+| **Web APIs** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
+| **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write`, …), `node:fs`, **`node:fs/promises`** (non-blocking), **`node:path`** |
+| **Developer experience** | Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
 
 ## Installation
 
@@ -125,7 +130,10 @@ The short URL is served by GitHub Pages; the same script is also at
 
 `rtn upgrade` works like `bun upgrade`: it downloads the new release, checks its SHA-256 against the
 published `SHA256SUMS`, makes sure the new binary runs, and only then swaps it in atomically. If
-anything fails, your current `rtn` stays untouched.
+anything fails (or you press Ctrl+C), your current `rtn` stays untouched. In a terminal every step is
+animated: a gradient progress bar with speed and ETA, a checkmark per step and a summary box.
+
+<p align="center"><img src="assets/rtn-upgrade.png" alt="rtn upgrade with an animated progress bar" width="720"></p>
 
 ## Build from source
 
@@ -187,7 +195,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.5.0 (QuickJS-ng 0.17.0)
+RunTime-Now v1.6.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const res = await new Promise((r) => setTimeout(() => r("done"), 100))
 > res
@@ -282,6 +290,9 @@ More in [`examples/`](examples): `server.ts`, `ts/main.ts`, `ts/edge.ts` (100+ T
 | `queueMicrotask(fn)` | Runs `fn` as a microtask |
 | `process` | See [process](#process) |
 | `rtn` | `rtn.version`, `rtn.serve()` |
+| `fetch` | HTTP client, see [fetch()](#fetch) |
+| `EventTarget`, `Event`, `CustomEvent`, `AbortController`, `AbortSignal` | See [Events and cancellation](#events-and-cancellation) |
+| `crypto`, `structuredClone` | See [crypto and structuredClone](#crypto-and-structuredclone) |
 | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response` | See [Web APIs](#web-apis) |
 | `TextEncoder`, `TextDecoder` | UTF-8 |
 | `atob`, `btoa`, `performance.now()` | Built into QuickJS-ng |
@@ -343,7 +354,8 @@ import { helper } from "./utils.ts";     // relative import
 import { helper } from "./utils";        // tries .js .mjs .ts .mts .json, then index.js / index.ts
 import { helper } from "./utils.js";     // falls back to utils.ts (TypeScript ESM convention)
 import data from "./data.json";          // JSON (default export)
-import fs from "rtn:fs";                 // built-in module (also "node:fs")
+import fs from "rtn:fs";                 // built-in module (also "node:fs", "fs")
+import path from "node:path";            // node:path, node:fs/promises
 const mod = await import("./lazy.js");   // dynamic import
 
 import.meta.url;        // "file:///abs/path/file.ts"
@@ -418,6 +430,63 @@ The returned server object has `{ hostname, port, url, stop(), shutdown(), finis
 Body values can be a `string`, `Uint8Array` or any `ArrayBufferView`, an `ArrayBuffer`,
 `URLSearchParams`, or `null`. Streams (`ReadableStream`) and `formData()` are not implemented yet.
 
+### fetch()
+
+```ts
+const res = await fetch("http://localhost:3000/todos", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ title: "write docs" }),
+  signal: AbortSignal.timeout(5000),     // optional: give up after 5 s
+});
+console.log(res.status, res.redirected, await res.json());
+```
+
+| Feature | Details |
+|---|---|
+| URLs | `http:` and `data:`. `https:` is not supported yet (no TLS); it fails with `cause.code === "ERR_TLS_NOT_SUPPORTED"` |
+| Redirects | `redirect: "follow"` (default, max 20), `"error"`, `"manual"`; 303 → GET; credentials dropped across origins |
+| Cancel | `signal` (`AbortController`, `AbortSignal.timeout()`, `AbortSignal.any()`) |
+| Bodies | string, bytes, `URLSearchParams`; responses with `Content-Length`, chunked or until close |
+| Errors | Like Node: `TypeError: fetch failed` with the reason in `cause`, e.g. `connect ECONNREFUSED 127.0.0.1:1` (`code`, `syscall`, `address`, `port`) or `getaddrinfo ENOTFOUND host` |
+
+DNS lookups run on a small thread pool, so they never block the event loop. Each request uses its own
+connection (`connection: close`).
+
+### Events and cancellation
+
+`EventTarget`, `Event`, `CustomEvent` (listeners with `once`, `passive`, `signal`, `handleEvent` objects),
+`AbortController` and `AbortSignal` (`abort()`, `timeout()`, `any()`, `throwIfAborted()`, `onabort`).
+A pending `AbortSignal.timeout()` doesn't keep the process alive, just like in Node.
+
+### crypto and structuredClone
+
+```js
+crypto.randomUUID();                          // "3b241101-e2bb-4255-8caf-4136c566a962"
+crypto.getRandomValues(new Uint8Array(16));   // from the kernel's CSPRNG (getrandom)
+const copy = structuredClone({ when: new Date(), tags: new Set(["a"]), self: null });
+```
+
+`structuredClone` handles primitives, `Date`, `RegExp`, `Map`, `Set`, `ArrayBuffer` (with `transfer`), typed arrays,
+`DataView`, errors, arrays, plain objects and cycles; functions, symbols and platform objects throw `DataCloneError`.
+
+### `node:path` and `node:fs/promises`
+
+```js
+import path from "node:path";            // also "path", "rtn:path"
+import fs from "node:fs/promises";       // also "fs/promises", (await import("fs")).promises
+
+const file = path.join(import.meta.dirname, "data", "notes.txt");
+await fs.mkdir(path.dirname(file), { recursive: true });
+await fs.writeFile(file, "hello");
+console.log(await fs.readFile(file, "utf8"), path.extname(file));   // hello .txt
+```
+
+`path` is the POSIX implementation from Node (`join`, `resolve`, `relative`, `normalize`, `dirname`, `basename`,
+`extname`, `parse`, `format`, `isAbsolute`, `sep`, `delimiter`); the tests check its output against Node.
+`fs/promises` has `readFile`, `writeFile`, `appendFile`, `readdir`, `mkdir`, `rm`, `rmdir`, `unlink`, `rename`,
+`copyFile`, `stat`, `lstat`, `access`, `realpath` and `constants`, and runs the work on the thread pool.
+
 ## TypeScript
 
 `rtn` runs TypeScript by **erasing types**, the way Node (`--experimental-strip-types`), Deno and Bun
@@ -477,16 +546,21 @@ src/
 ├── runtime.cpp/.hpp      JS engine, event loop, timers, I/O, unhandled rejections
 ├── repl.cpp              REPL (async eval, multi-line input, TypeScript)
 ├── upgrade.cpp           rtn upgrade: download, verify SHA-256, atomic replace
+├── term.cpp/.hpp         Terminal UI for rtn upgrade: gradient, spinner, progress bar
 ├── modules.cpp/.hpp      Module resolution and loading
 ├── builtins.cpp          Runs the embedded JS at startup
 ├── util.cpp/.hpp         Helpers, Node-style errors
 ├── typescript/strip.cpp  TypeScript → JavaScript (tokenizer + type eraser)
+├── js/events.js          EventTarget, Event, AbortController, AbortSignal
 ├── js/web.js             URL, URLSearchParams, Headers, Request, Response, TextEncoder/Decoder
+├── js/fetch.js           fetch()
+├── js/crypto.js          crypto, structuredClone
+├── js/modules.js         node:path, node:fs/promises
 ├── js/http.js            rtn.serve()
-└── bindings/             console, timers, process, fs, encoding, http
-tests/                    Test suite (run.sh, cases/, strip/, http_test.py, upgrade_test.sh)
+└── bindings/             console, timers, process, fs, encoding, http, fetch, crypto
+tests/                    Test suite (run.sh, cases/, strip/, http_test.py, fetch_test.py, upgrade_test.sh)
 install.sh                One-line installer (curl … | bash)
-.github/workflows/        CI (every push) and release (every v* tag)
+.github/workflows/        CI (every push) and release (a version bump on main, or a v* tag)
 tools/loadgen.cpp         HTTP/1.1 load generator used for the benchmarks
 third_party/quickjs/      QuickJS-ng (git submodule)
 ```
@@ -525,10 +599,11 @@ tests/run.sh --update  # regenerate expected outputs after an intentional change
 
 | Suite | What it checks |
 |---|---|
-| `tests/cases/` | 14 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, process, errors, TypeScript, Web APIs. Several outputs are **identical to Node or Deno** |
+| `tests/cases/` | 19 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto. Several outputs are **identical to Node or Deno** |
 | `tests/strip/` | Exact TypeScript → JavaScript output, and that line numbers are preserved |
 | `tests/http_test.py` | 27 HTTP checks over raw sockets: pipelining, chunked bodies, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 concurrent requests, graceful `stop()` |
-| `tests/upgrade_test.sh` | `install.sh` and `rtn upgrade` against a fake release server: pinned and latest installs, PATH setup, tampered checksums, atomic upgrade |
+| `tests/fetch_test.py` | 16 `fetch()` checks against a raw-socket server: chunked, close-delimited, 1xx, truncated, oversized and malformed responses |
+| `tests/upgrade_test.sh` | `install.sh` and `rtn upgrade` against a fake release server: pinned and latest installs, PATH setup, tampered checksums, atomic upgrade, the animated terminal mode |
 | CLI + REPL | Arguments, stdin scripts, REPL session with `await` |
 
 CI runs the suite with GCC and Clang on every push ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
@@ -539,11 +614,12 @@ Debug build, in which QuickJS asserts that no JS objects leak.
 
 RunTime-Now is young. Here is what doesn't exist yet, roughly in priority order:
 
-- [ ] `fetch()` (HTTP client)
-- [ ] `node:path`, async `fs` (`fs/promises`)
+- [x] `fetch()` (HTTP client) — `https:` waits for TLS below
+- [x] `node:path`, async `fs` (`fs/promises`)
 - [ ] npm packages: resolving `node_modules` and bare specifiers
 - [ ] CommonJS `require()`
-- [ ] `crypto` (`randomUUID`, `subtle`), `Buffer`, `structuredClone`, `AbortController`
+- [x] `crypto.randomUUID()` / `getRandomValues()`, `structuredClone`, `AbortController`, `EventTarget`
+- [ ] `crypto.subtle`, `Buffer`
 - [ ] Streaming bodies (`ReadableStream`), `FormData`, `Blob`
 - [ ] WebSocket, HTTPS/TLS
 - [ ] `Intl` (locale-aware formatting)

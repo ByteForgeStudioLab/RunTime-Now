@@ -4,7 +4,7 @@ import http.client, json, os, socket, subprocess, sys, threading, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RTN = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "build", "rtn")
-PORT = 38000 + os.getpid() % 1000
+PORT = 0  # the server picks a free port and reports it
 passed = failed = 0
 
 def check(name, cond, detail=""):
@@ -43,10 +43,12 @@ def request(method, path, body=None, headers=None):
     c.close()
     return r, data
 
-env = dict(os.environ, PORT=str(PORT))
+env = dict(os.environ, PORT="0")
 proc = subprocess.Popen([RTN, os.path.join(ROOT, "tests/fixtures/server.ts")], env=env,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-assert proc.stdout.readline().strip() == "ready", "server did not start"
+ready = proc.stdout.readline().split()
+assert ready[:1] == ["ready"], "server did not start"
+PORT = int(ready[1])
 
 print("http:")
 r, d = request("GET", "/")

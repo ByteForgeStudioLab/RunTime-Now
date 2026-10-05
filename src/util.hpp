@@ -28,6 +28,8 @@ JSValue throw_error(JSContext* ctx, const std::string& msg);
 //   Error: ENOENT: no such file or directory, open 'a.txt'
 //   { code: 'ENOENT', errno: -2, syscall: 'open', path: 'a.txt' }
 JSValue throw_errno(JSContext* ctx, int err, const char* syscall, const std::string& path = "");
+// The same error object, without throwing it (e.g. to reject a promise).
+JSValue errno_error(JSContext* ctx, int err, const char* syscall, const std::string& path = "");
 
 // "ENOENT" for ENOENT, etc.
 const char* errno_name(int err);

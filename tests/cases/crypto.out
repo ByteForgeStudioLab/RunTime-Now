@@ -1,0 +1,14 @@
+uuid v4: true true
+getRandomValues returns its argument: true true
+TypeMismatchError
+QuotaExceededError
+true true true [ 1, 2 ]
+true gi true bad why
+Uint8Array(3) [ 1, 2, 3 ] Set(2) { 1, 'two' } object 10n
+class instance -> plain object: { x: 1, y: 2 } true
+DataCloneError
+DataCloneError
+DataCloneError
+DataCloneError
+transfer: 0 Uint8Array(3) [ 9, 8, 7 ]
+AbortError

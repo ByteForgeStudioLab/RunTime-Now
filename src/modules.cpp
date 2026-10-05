@@ -20,10 +20,68 @@ struct NativeModule {
     NativeModuleFactory create;
 };
 
-// Built-in modules: import { readFileSync } from "rtn:fs"
+// "node:path/posix" -> "path" (the key in internal.modules).
+std::string builtin_key(std::string name) {
+    for (const char* prefix : {"rtn:", "node:"}) {
+        if (name.starts_with(prefix)) name.erase(0, std::strlen(prefix));
+    }
+    if (name == "path/posix") name = "path";
+    return name;
+}
+
+// A built-in module written in JS: every property of its exports object
+// becomes a named export, and the object itself is the default export.
+int js_module_init(JSContext* ctx, JSModuleDef* m) {
+    JSAtom atom = JS_GetModuleName(ctx, m);
+    const char* name = JS_AtomToCString(ctx, atom);
+    JS_FreeAtom(ctx, atom);
+    JSValue exports = builtin_module_exports(ctx, builtin_key(name ? name : ""));
+    JS_FreeCString(ctx, name);
+    JSPropertyEnum* props = nullptr;
+    uint32_t len = 0;
+    if (JS_GetOwnPropertyNames(ctx, &props, &len, exports, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+        for (uint32_t i = 0; i < len; ++i) {
+            const char* key = JS_AtomToCString(ctx, props[i].atom);
+            JS_SetModuleExport(ctx, m, key, JS_GetProperty(ctx, exports, props[i].atom));
+            JS_FreeCString(ctx, key);
+        }
+        JS_FreePropertyEnum(ctx, props, len);
+    }
+    return JS_SetModuleExport(ctx, m, "default", exports);
+}
+
+JSModuleDef* create_js_module(JSContext* ctx, const char* name) {
+    JSValue exports = builtin_module_exports(ctx, builtin_key(name));
+    JSModuleDef* m = JS_NewCModule(ctx, name, js_module_init);
+    JSPropertyEnum* props = nullptr;
+    uint32_t len = 0;
+    if (m && JS_GetOwnPropertyNames(ctx, &props, &len, exports, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+        for (uint32_t i = 0; i < len; ++i) {
+            const char* key = JS_AtomToCString(ctx, props[i].atom);
+            JS_AddModuleExport(ctx, m, key);
+            JS_FreeCString(ctx, key);
+        }
+        JS_FreePropertyEnum(ctx, props, len);
+    }
+    JS_FreeValue(ctx, exports);
+    if (m) JS_AddModuleExport(ctx, m, "default");
+    return m;
+}
+
+// Built-in modules: import { readFileSync } from "rtn:fs". Like Node, the
+// "node:" prefix is optional ("fs", "path").
 constexpr NativeModule kNativeModules[] = {
     {"rtn:fs", create_fs_module},
     {"node:fs", create_fs_module},
+    {"fs", create_fs_module},
+    {"rtn:fs/promises", create_js_module},
+    {"node:fs/promises", create_js_module},
+    {"fs/promises", create_js_module},
+    {"rtn:path", create_js_module},
+    {"node:path", create_js_module},
+    {"path", create_js_module},
+    {"node:path/posix", create_js_module},
+    {"path/posix", create_js_module},
 };
 
 const NativeModule* find_native(const char* name) {

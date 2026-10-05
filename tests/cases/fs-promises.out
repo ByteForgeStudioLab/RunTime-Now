@@ -1,0 +1,10 @@
+mkdir: true
+héllo! Uint8Array(7) [ 104, 195, 169, 108, 108, 111, 33 ]
+true 7
+[ 'a', 'z.txt' ] undefined
+ENOENT open ENOENT: no such file or directory, open 'fs-promises-tmp/missing'
+ERR_FS_EISDIR
+TypeError The "path" argument must be of type string. Received type number (42)
+true true
+50 parallel: true
+cleaned up: true

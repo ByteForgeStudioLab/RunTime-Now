@@ -1,17 +1,59 @@
 name: Release
 
-# Push a tag like v1.6.0 to publish a release:
-#   git tag -a v1.6.0 -m "RunTime-Now 1.6.0" && git push origin v1.6.0
+# A release is published in two ways:
+#   1. Bump `project(RunTimeNow VERSION x.y.z)` in CMakeLists.txt and merge it into main:
+#      the `version` job creates the tag vx.y.z and the release is built from it.
+#   2. Push a tag yourself:
+#      git tag -a v1.6.0 -m "RunTime-Now 1.6.0" && git push origin v1.6.0
 on:
   push:
     tags: ["v*"]
+    branches: [main]
+    paths: [CMakeLists.txt]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # Which tag to release, creating it when main got a new version.
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide the tag
+        id: v
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          version=$(sed -n 's/^project(RunTimeNow VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt)
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "$tag already exists: nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" -m "RunTime-Now $version"
+            git push origin "$tag"
+            echo "Created $tag"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: linux-${{ matrix.arch }}
+    needs: version
+    if: needs.version.outputs.release == 'true'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: true
@@ -24,13 +66,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.version.outputs.tag }}
           submodules: recursive
 
       # Alpine (musl) + static linking: one binary that runs on every Linux distro.
       # The exact binary that gets published is also the one that runs the test suite.
       - name: Build and test (static, Alpine)
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
-          docker run --rm -v "$PWD:/src" -w /src -e VERSION="${GITHUB_REF_NAME#v}" alpine:3.20 sh -euxc '
+          docker run --rm -v "$PWD:/src" -w /src -e VERSION="${TAG#v}" alpine:3.20 sh -euxc '
             apk add --no-cache build-base cmake linux-headers bash python3 curl tar
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DRTN_STATIC=ON
             cmake --build build -j"$(nproc)"
@@ -53,10 +98,14 @@ jobs:
           path: dist/rtn-linux-${{ matrix.arch }}.tar.gz
 
   release:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -65,14 +114,14 @@ jobs:
 
       - name: Checksums, VERSION file and release notes
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           cd dist
           sha256sum rtn-linux-*.tar.gz > SHA256SUMS
           echo "$version" > VERSION   # read by `rtn upgrade` and install.sh via releases/latest/download/VERSION
           cd ..
           {
             if [ -f "assets/rtn-$version.png" ]; then
-              echo "![RunTime-Now $version](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/assets/rtn-$version.png)"
+              echo "![RunTime-Now $version](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${TAG}/assets/rtn-$version.png)"
               echo
             fi
             awk -v v="$version" 'index($0, "## " v) == 1 { f = 1; next } /^## / && f { exit } f' CHANGELOG.md
@@ -87,7 +136,7 @@ jobs:
             echo 'Already installed? Run `rtn upgrade`.'
             if [ -f assets/rtn-install.png ]; then
               echo
-              echo "![Install in one line](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/assets/rtn-install.png)"
+              echo "![Install in one line](https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${TAG}/assets/rtn-install.png)"
             fi
           } > notes.md
           cat notes.md
@@ -96,6 +145,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "RunTime-Now ${GITHUB_REF_NAME#v}" \
+          gh release create "$TAG" dist/* --verify-tag \
+            --title "RunTime-Now ${TAG#v}" \
             --notes-file notes.md

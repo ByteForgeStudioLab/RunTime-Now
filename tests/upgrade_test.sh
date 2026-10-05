@@ -45,10 +45,15 @@ make_release 9.9.8 "$(fake_binary 9.9.8)" corrupt
 mkdir -p "$REL/latest/download"
 echo "9.9.9" > "$REL/latest/download/VERSION"
 
-PORT=$((39000 + $$ % 1000))
-python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$REL" > /dev/null 2>&1 &
+# Port 0: the OS picks a free port (a fixed one can clash with a client's ephemeral port).
+python3 -u -m http.server 0 --bind 127.0.0.1 --directory "$REL" > "$WORK/server.log" 2>&1 &
 SERVER_PID=$!
-for _ in $(seq 1 50); do curl -fs -o /dev/null "http://127.0.0.1:$PORT/latest/download/VERSION" && break; sleep 0.1; done
+PORT=""
+for _ in $(seq 1 50); do
+  PORT=$(sed -n 's/.* port \([0-9][0-9]*\).*/\1/p' "$WORK/server.log" | head -1)
+  [ -n "$PORT" ] && curl -fs -o /dev/null "http://127.0.0.1:$PORT/latest/download/VERSION" && break
+  sleep 0.1
+done
 
 export HOME="$WORK/home" SHELL=/bin/bash RTN_RELEASES_URL="http://127.0.0.1:$PORT"
 mkdir -p "$HOME"
