@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.1 — 2026-10-05
+
+- **`navigator`** global, like in Node, Deno and Bun: `userAgent` (`rtn/1.6.1`), `hardwareConcurrency`, `platform`, `language` / `languages` (from `LANG`).
+- **`rtn --help`** now lists the built-in modules, the main globals and a link to the docs.
+
 ## 1.6.0 — 2026-10-05
 
 - **`fetch()`**: HTTP/1.1 client for `http:` and `data:` URLs — redirects (`follow` / `error` / `manual`), `AbortSignal` and `AbortSignal.timeout()`, chunked / length / close-delimited responses, Node-style `TypeError: fetch failed` with a `cause`. `Response.url` / `redirected`, `Request.signal` / `redirect`. (`https:` needs TLS, not built in yet.)

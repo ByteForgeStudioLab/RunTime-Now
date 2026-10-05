@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/rtn-1.6.0.png" alt="RunTime-Now 1.6.0" width="760">
+<img src="assets/rtn-1.6.1.png" alt="RunTime-Now 1.6.1" width="760">
 
 # ⚡ RunTime-Now
 
@@ -199,7 +199,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.6.0 (QuickJS-ng 0.17.0)
+RunTime-Now v1.6.1 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const natija = await new Promise((r) => setTimeout(() => r("tayyor"), 100))
 > natija
@@ -297,6 +297,7 @@ Ko'proq misollar [`examples/`](examples) papkasida: `server.ts`, `ts/main.ts`, `
 | `fetch` | HTTP mijoz, [fetch()](#fetch) bo'limiga qarang |
 | `EventTarget`, `Event`, `CustomEvent`, `AbortController`, `AbortSignal` | [Hodisalar va bekor qilish](#hodisalar-va-bekor-qilish) bo'limiga qarang |
 | `crypto`, `structuredClone` | [crypto va structuredClone](#crypto-va-structuredclone) bo'limiga qarang |
+| `navigator` | `userAgent`, `hardwareConcurrency`, `platform`, `language` (`LANG` dan) |
 | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response` | [Web API'lar](#web-apilar) bo'limiga qarang |
 | `TextEncoder`, `TextDecoder` | UTF-8 |
 | `atob`, `btoa`, `performance.now()` | QuickJS-ng ichida bor |
@@ -605,7 +606,7 @@ tests/run.sh --update  # ataylab o'zgartirishdan keyin kutilgan natijalarni qayt
 
 | To'plam | Nimani tekshiradi |
 |---|---|
-| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 19 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
+| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 20 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
 | `tests/strip/` | TypeScript → JavaScript natijasi belgima-belgi, qatorlar soni saqlanishi |
 | `tests/http_test.py` | Xom socket orqali 27 ta HTTP tekshiruvi: pipelining, chunked body, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 ta parallel so'rov, `stop()` |
 | `tests/fetch_test.py` | Xom socket server orqali 16 ta `fetch()` tekshiruvi: chunked, ulanish yopilguncha keladigan, 1xx, uzilgan, juda katta va buzilgan javoblar |

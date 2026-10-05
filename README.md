@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/rtn-1.6.0.png" alt="RunTime-Now 1.6.0" width="760">
+<img src="assets/rtn-1.6.1.png" alt="RunTime-Now 1.6.1" width="760">
 
 # ⚡ RunTime-Now
 
@@ -195,7 +195,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.6.0 (QuickJS-ng 0.17.0)
+RunTime-Now v1.6.1 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const res = await new Promise((r) => setTimeout(() => r("done"), 100))
 > res
@@ -293,6 +293,7 @@ More in [`examples/`](examples): `server.ts`, `ts/main.ts`, `ts/edge.ts` (100+ T
 | `fetch` | HTTP client, see [fetch()](#fetch) |
 | `EventTarget`, `Event`, `CustomEvent`, `AbortController`, `AbortSignal` | See [Events and cancellation](#events-and-cancellation) |
 | `crypto`, `structuredClone` | See [crypto and structuredClone](#crypto-and-structuredclone) |
+| `navigator` | `userAgent`, `hardwareConcurrency`, `platform`, `language` |
 | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response` | See [Web APIs](#web-apis) |
 | `TextEncoder`, `TextDecoder` | UTF-8 |
 | `atob`, `btoa`, `performance.now()` | Built into QuickJS-ng |
@@ -599,7 +600,7 @@ tests/run.sh --update  # regenerate expected outputs after an intentional change
 
 | Suite | What it checks |
 |---|---|
-| `tests/cases/` | 19 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto. Several outputs are **identical to Node or Deno** |
+| `tests/cases/` | 20 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto. Several outputs are **identical to Node or Deno** |
 | `tests/strip/` | Exact TypeScript → JavaScript output, and that line numbers are preserved |
 | `tests/http_test.py` | 27 HTTP checks over raw sockets: pipelining, chunked bodies, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 concurrent requests, graceful `stop()` |
 | `tests/fetch_test.py` | 16 `fetch()` checks against a raw-socket server: chunked, close-delimited, 1xx, truncated, oversized and malformed responses |
