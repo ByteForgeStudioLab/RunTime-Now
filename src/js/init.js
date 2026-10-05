@@ -1,4 +1,6 @@
-// rtn init [dir]: a new TypeScript project, ready for `rtn index.ts` and `rtn test`.
+// rtn init [dir] [--ts|--js]: a new TypeScript or JavaScript project, ready for
+// `rtn index.ts` (or index.js) and `rtn test`. The interactive language prompt lives
+// in main.cpp; it passes the answer here as --ts / --js. TypeScript is the default.
 (function (native, internal) {
   "use strict";
 
@@ -11,41 +13,55 @@
   const dim = paint("\x1b[2m");
   const bold = paint("\x1b[1m");
 
-  function files(name) {
-    return {
-      "package.json": JSON.stringify({
+  const compilerOptions = {
+    target: "ES2022",
+    module: "ESNext",
+    moduleResolution: "Bundler",
+    allowImportingTsExtensions: true,
+    verbatimModuleSyntax: true,
+    strict: true,
+    noEmit: true,
+    skipLibCheck: true,
+  };
+  const json = (value) => JSON.stringify(value, null, 2) + "\n";
+  const testFile = (ext) => `import { test, expect } from "rtn:test";\nimport { greet } from "./greet.${ext}";\n\n` +
+    `test("greets by name", () => {\n  expect(greet("Ali")).toBe("Hello, Ali!");\n});\n`;
+
+  function files(name, ts) {
+    const ext = ts ? "ts" : "js";
+    const out = {
+      "package.json": json({
         name,
         version: "0.1.0",
         type: "module",
         private: true,
-        scripts: { start: "rtn index.ts", test: "rtn test" },
-      }, null, 2) + "\n",
-      "index.ts": `import { greet } from "./greet.ts";\n\nconsole.log(greet("world"));\n`,
-      "greet.ts": "export function greet(name: string): string {\n  return `Hello, ${name}!`;\n}\n",
-      "greet.test.ts": `import { test, expect } from "rtn:test";\nimport { greet } from "./greet.ts";\n\n` +
-        `test("greets by name", () => {\n  expect(greet("Ali")).toBe("Hello, Ali!");\n});\n`,
-      "tsconfig.json": JSON.stringify({
-        compilerOptions: {
-          target: "ES2022",
-          module: "ESNext",
-          moduleResolution: "Bundler",
-          allowImportingTsExtensions: true,
-          verbatimModuleSyntax: true,
-          strict: true,
-          noEmit: true,
-          skipLibCheck: true,
-        },
-      }, null, 2) + "\n",
-      ".gitignore": "node_modules/\n",
+        scripts: { start: `rtn index.${ext}`, test: "rtn test" },
+      }),
+      [`index.${ext}`]: `import { greet } from "./greet.${ext}";\n\nconsole.log(greet("world"));\n`,
     };
+    if (ts) {
+      out["greet.ts"] = "export function greet(name: string): string {\n  return `Hello, ${name}!`;\n}\n";
+      out["greet.test.ts"] = testFile("ts");
+      out["tsconfig.json"] = json({ compilerOptions });
+    } else {
+      out["greet.js"] = "/**\n * @param {string} name\n * @returns {string}\n */\n" +
+        "export function greet(name) {\n  return `Hello, ${name}!`;\n}\n";
+      out["greet.test.js"] = testFile("js");
+      // Editors use jsconfig.json for JavaScript projects; checkJs turns the JSDoc types above into checks.
+      const { allowImportingTsExtensions, ...jsOptions } = compilerOptions;
+      out["jsconfig.json"] = json({ compilerOptions: { ...jsOptions, checkJs: true } });
+    }
+    out[".gitignore"] = "node_modules/\n";
+    return out;
   }
 
   internal.initProject = async (args) => {
+    const ts = !args.some((a) => a === "--js" || a === "--javascript");
     const target = path.resolve(process.cwd(), args.find((a) => !a.startsWith("-")) ?? ".");
     const name = path.basename(target).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[._-]+/, "") || "my-app";
     fs.mkdirSync(target, { recursive: true });
-    process.stdout.write(`\n${blue("●")} ${bold("rtn init")} ${dim(target)}\n\n`);
-    for (const [file, content] of Object.entries(files(name))) {
+    process.stdout.write(`\n${blue("●")} ${bold("rtn init")} ${dim(`${ts ? "TypeScript" : "JavaScript"} · ${target}`)}\n\n`);
+    for (const [file, content] of Object.entries(files(name, ts))) {
       const full = path.join(target, file);
       if (fs.existsSync(full)) {
         process.stdout.write(`  ${dim("·")} ${file.padEnd(16)}${dim("exists, kept as is")}\n`);
@@ -57,7 +73,7 @@
     const rel = path.relative(process.cwd(), target);
     process.stdout.write(`\n${bold("Next:")}\n`);
     if (rel) process.stdout.write(`  ${blue(`cd ${rel}`)}\n`);
-    process.stdout.write(`  ${blue("rtn index.ts")}   ${dim("run it")}\n  ${blue("rtn test")}       ${dim("run the tests")}\n\n`);
+    process.stdout.write(`  ${blue(`rtn index.${ts ? "ts" : "js"}`)}   ${dim("run it")}\n  ${blue("rtn test")}       ${dim("run the tests")}\n\n`);
     return 0;
   };
 });

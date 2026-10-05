@@ -100,7 +100,7 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 | **Web APIs** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
 | **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (an `EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (non-blocking), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hashes, HMAC), `module`, `timers`, `tty` |
 | **Testing** | `rtn test`: built-in test runner with the Jest/Bun API (`describe`, `test`, `expect`, mocks, hooks) |
-| **Developer experience** | `rtn init` for a new TypeScript project, Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
+| **Developer experience** | `rtn init` for a new TypeScript or JavaScript project, Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
 
 ## Installation
 
@@ -188,7 +188,7 @@ cmake --build build
 | `rtn run <file> [args...]` | Same as above |
 | `rtn -e "<code>" [args...]` | Evaluate code as an ES module |
 | `rtn test [paths] [-t name]` | Run the tests in `*.test.*`, `*_test.*`, `*.spec.*` files ([rtn test](#testing-your-code-rtn-test)) |
-| `rtn init [dir]` | Create a TypeScript project: `package.json`, `index.ts`, a test, `tsconfig.json` |
+| `rtn init [dir]` | Create a project — asks **TypeScript** or **JavaScript** (↑/↓, Enter): `package.json`, `index.ts` / `index.js`, a test, `tsconfig.json` / `jsconfig.json`. Skip the question with `--ts` or `--js`; without a terminal (scripts, CI) it picks TypeScript |
 | `rtn strip <file.ts>` | Print the JavaScript produced from a TypeScript file |
 | `rtn upgrade` / `rtn update -r` | Upgrade to the latest release (`--check`, `--version x.y.z`, `--force`) |
 | `rtn` | Start the REPL (on a terminal) or run a script piped into stdin |

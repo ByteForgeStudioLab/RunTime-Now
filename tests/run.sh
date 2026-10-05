@@ -67,6 +67,12 @@ if "$RTN" init "$INIT_DIR/app" > /dev/null 2>&1 && (cd "$INIT_DIR/app" && "$RTN"
 else
   fail "rtn init creates a project that runs and passes its tests"
 fi
+if "$RTN" init "$INIT_DIR/js" --js > /dev/null 2>&1 && [ ! -e "$INIT_DIR/js/index.ts" ] && [ -f "$INIT_DIR/js/jsconfig.json" ] &&
+  (cd "$INIT_DIR/js" && "$RTN" index.js | grep -q "Hello, world!" && "$RTN" test > /dev/null 2>&1); then
+  ok "rtn init --js creates a JavaScript project that runs and passes its tests"
+else
+  fail "rtn init --js creates a JavaScript project that runs and passes its tests"
+fi
 rm -rf "$INIT_DIR"
 
 echo "strip:"
