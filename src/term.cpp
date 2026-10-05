@@ -5,7 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <poll.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 #include <unistd.h>
 
 namespace rtn::term {
@@ -178,6 +180,100 @@ std::string box(const std::vector<std::string>& lines) {
         out += "  " + b + "│" + r + "  " + l + std::string(inner - 2 - visible_width(l), ' ') + b + "│" + r + "\n";
     }
     return out + "  " + b + "╰" + bar + "╯" + r + "\n";
+}
+
+namespace {
+
+enum class Key { Up, Down, Enter, Cancel, Other };
+
+// Reads one key press in raw mode; `digit` gets '1'..'9' when one was typed.
+Key read_key(char& digit) {
+    digit = 0;
+    unsigned char c;
+    if (read(STDIN_FILENO, &c, 1) != 1) return Key::Cancel;  // EOF / error
+    if (c == '\r' || c == '\n') return Key::Enter;
+    if (c == 3 || c == 4) return Key::Cancel;  // Ctrl+C, Ctrl+D
+    if (c == 'k' || c == 16) return Key::Up;    // k, Ctrl+P
+    if (c == 'j' || c == 14) return Key::Down;  // j, Ctrl+N
+    if (c >= '1' && c <= '9') {
+        digit = static_cast<char>(c);
+        return Key::Other;
+    }
+    if (c != 0x1b) return Key::Other;
+    // A lone Esc cancels; "ESC [ A" / "ESC O A" are the arrow keys.
+    pollfd p{STDIN_FILENO, POLLIN, 0};
+    unsigned char seq[2];
+    if (poll(&p, 1, 50) <= 0 || read(STDIN_FILENO, &seq[0], 1) != 1) return Key::Cancel;
+    if (seq[0] != '[' && seq[0] != 'O') return Key::Other;
+    if (read(STDIN_FILENO, &seq[1], 1) != 1) return Key::Cancel;
+    if (seq[1] == 'A') return Key::Up;
+    if (seq[1] == 'B') return Key::Down;
+    return Key::Other;
+}
+
+}  // namespace
+
+int select(std::string_view question, const std::vector<Choice>& choices, int initial) {
+    const int n = static_cast<int>(choices.size());
+    if (n == 0) return -1;
+    termios saved{};
+    if (tcgetattr(STDIN_FILENO, &saved) != 0) return initial;
+    termios raw = saved;
+    raw.c_lflag &= ~(ICANON | ECHO | ISIG);  // Ctrl+C arrives as a key, so the terminal is always restored
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+
+    size_t width = 0;
+    for (auto& c : choices) width = std::max(width, visible_width(c.label));
+    std::string a = accent(), r = reset(), d = dim(), b = bold();
+    std::fputs("\x1b[?25l", stdout);  // hide the cursor while the menu is up
+    std::string title = "  " + a + "?" + r + " " + b + std::string(question) + r;
+    std::printf("%s %s↑/↓ to move, enter to select%s\n", title.c_str(), d.c_str(), r.c_str());
+
+    int cur = std::clamp(initial, 0, n - 1);
+    auto draw = [&](bool first) {
+        if (!first) std::printf("\x1b[%dA", n);  // back to the first choice
+        for (int i = 0; i < n; ++i) {
+            const auto& c = choices[i];
+            std::string pad(width - visible_width(c.label) + 3, ' ');
+            std::string line = i == cur ? "  " + a + "❯ " + c.label + r : "    " + c.label;
+            redraw_line(line + pad + d + c.hint + r + "\n");
+        }
+    };
+    draw(true);
+    int result = -1;
+    for (;;) {
+        char digit;
+        Key k = read_key(digit);
+        if (k == Key::Cancel) break;
+        if (k == Key::Enter) {
+            result = cur;
+            break;
+        }
+        if (digit && digit - '1' < n) {
+            result = digit - '1';
+            break;
+        }
+        if (k == Key::Up) cur = (cur + n - 1) % n;
+        else if (k == Key::Down) cur = (cur + 1) % n;
+        draw(false);
+    }
+
+    // Collapse the menu into one line with the answer.
+    std::printf("\x1b[%dA", n + 1);
+    for (int i = 0; i <= n; ++i) std::fputs("\r\x1b[2K\n", stdout);
+    std::printf("\x1b[%dA", n + 1);
+    if (result >= 0) {
+        std::printf("  %s✓%s %s%s%s %s%s%s\n", a.c_str(), r.c_str(), b.c_str(), std::string(question).c_str(),
+                    r.c_str(), a.c_str(), choices[result].label.c_str(), r.c_str());
+    } else {
+        std::printf("  %s✗%s %s %sCancelled%s\n", d.c_str(), r.c_str(), std::string(question).c_str(), d.c_str(), r.c_str());
+    }
+    std::fputs("\x1b[?25h", stdout);
+    std::fflush(stdout);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved);
+    return result;
 }
 
 }  // namespace rtn::term

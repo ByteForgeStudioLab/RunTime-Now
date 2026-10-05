@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`rtn init` asks TypeScript or JavaScript**: an arrow-key menu (↑/↓ or j/k, `1`/`2`, Enter; Esc or Ctrl+C cancels) picks the template. The JavaScript project has `index.js`, `greet.js` with JSDoc types, `greet.test.js` and a `jsconfig.json` with `checkJs`. `--ts` / `--js` (or `-y` for TypeScript) skip the question, and without a terminal — scripts, CI — TypeScript is chosen as before.
+
 ## 2.0.0 — 2026-10-05
 
 The biggest release so far: rtn now runs npm packages, CommonJS code and your tests.

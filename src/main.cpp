@@ -4,7 +4,7 @@
 //   rtn run <file>                     same thing
 //   rtn -e "<code>" [args...]          run code from the command line
 //   rtn test [paths] [-t pattern]      run tests written with rtn:test
-//   rtn init [dir]                     create a new TypeScript project
+//   rtn init [dir] [--ts|--js]         create a new TypeScript or JavaScript project
 //   rtn strip <file.ts>                print the JavaScript produced from a .ts file
 //   rtn upgrade [-r] [--check]         update rtn to the latest release (alias: update)
 //   rtn                                REPL (or run stdin as a script when it's piped)
@@ -19,6 +19,7 @@
 
 #include "quickjs.h"
 #include "runtime.hpp"
+#include "term.hpp"
 #include "typescript/strip.hpp"
 #include "upgrade.hpp"
 #include "util.hpp"
@@ -34,7 +35,7 @@ void print_usage() {
         "  rtn run <file> [args...]    Same as above\n"
         "  rtn -e \"<code>\" [args...]   Evaluate code\n"
         "  rtn test [paths] [-t name]  Run tests (*.test.ts, *.spec.js, ...) with rtn:test\n"
-        "  rtn init [dir]              Create a new TypeScript project\n"
+        "  rtn init [dir] [--ts|--js]  Create a new project (asks TypeScript or JavaScript)\n"
         "  rtn strip <file.ts>         Print the JavaScript made from a TypeScript file\n"
         "  rtn upgrade                 Upgrade rtn to the latest release (alias: rtn update -r)\n"
         "  rtn                         Start the REPL (runs stdin as a script if it's piped)\n"
@@ -64,6 +65,26 @@ std::string self_path(const char* argv0) {
     ssize_t n = readlink("/proc/self/exe", buf, sizeof buf - 1);
     if (n > 0) return std::string(buf, static_cast<size_t>(n));
     return argv0;
+}
+
+// `rtn init` without --ts / --js / -y asks which language to use, when there is
+// someone at the terminal to answer. Adds the answer to `rest`; false = cancelled.
+bool ask_init_language(std::vector<std::string>& rest) {
+    for (auto& a : rest) {
+        if (a == "--ts" || a == "--typescript" || a == "--js" || a == "--javascript" || a == "-y" || a == "--yes") {
+            return true;
+        }
+    }
+    if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) return true;  // scripts and CI get TypeScript
+    rtn::term::init(true);
+    std::printf("\n");
+    int pick = rtn::term::select("Select a project template", {
+        {"TypeScript", "index.ts, tsconfig.json"},
+        {"JavaScript", "index.js, jsconfig.json"},
+    });
+    if (pick < 0) return false;
+    rest.push_back(pick == 0 ? "--ts" : "--js");
+    return true;
 }
 
 // Builds process.argv: [rtn, ...rest]
@@ -113,6 +134,7 @@ int main(int argc, char** argv) {
     }
     if (cmd == "test" || cmd == "init") {
         std::vector<std::string> rest(argv + 2, argv + argc);
+        if (cmd == "init" && !ask_init_language(rest)) return 130;
         auto args = make_argv(self, argv + 2, argv + argc);
         rtn::Runtime runtime(static_cast<int>(args.size()), args.data());
         return runtime.run_internal(cmd == "test" ? "runTests" : "initProject", rest);

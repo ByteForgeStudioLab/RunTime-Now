@@ -43,4 +43,13 @@ void show_cursor();
 // A rounded box around `lines` with a blue border.
 std::string box(const std::vector<std::string>& lines);
 
+struct Choice {
+    std::string label;
+    std::string hint;  // dimmed text after the label
+};
+// An arrow-key menu on the terminal (↑/↓ or j/k, a number, Enter). Returns the
+// chosen index, or -1 if the user cancelled with Esc / Ctrl+C. Call only when
+// stdin and stdout are terminals.
+int select(std::string_view question, const std::vector<Choice>& choices, int initial = 0);
+
 }  // namespace rtn::term

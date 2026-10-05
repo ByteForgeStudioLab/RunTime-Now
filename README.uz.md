@@ -100,7 +100,7 @@ bo'ladigan** runtime (taxminan 12 000 qator C++ va JavaScript), lekin u haqiqiy 
 | **Web API** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
 | **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (bloklamaydi), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hash, HMAC), `module`, `timers`, `tty` |
 | **Testlash** | `rtn test`: Jest/Bun API'li o'rnatilgan test runner (`describe`, `test`, `expect`, mock'lar, hook'lar) |
-| **Qulayliklar** | Yangi TypeScript loyiha uchun `rtn init`, Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
+| **Qulayliklar** | Yangi TypeScript yoki JavaScript loyiha uchun `rtn init`, Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
 
 ## O'rnatish
 
@@ -192,7 +192,7 @@ cmake --build build
 | `rtn run <fayl> [argumentlar...]` | Yuqoridagi bilan bir xil |
 | `rtn -e "<kod>" [argumentlar...]` | Kodni ES modul sifatida bajarish |
 | `rtn test [yo'llar] [-t nom]` | `*.test.*`, `*_test.*`, `*.spec.*` fayllardagi testlarni ishga tushirish ([rtn test](#kodingizni-testlash-rtn-test)) |
-| `rtn init [papka]` | TypeScript loyiha yaratish: `package.json`, `index.ts`, test, `tsconfig.json` |
+| `rtn init [papka]` | Loyiha yaratish — **TypeScript** yoki **JavaScript**ni so'raydi (↑/↓, Enter): `package.json`, `index.ts` / `index.js`, test, `tsconfig.json` / `jsconfig.json`. Savolsiz: `--ts` yoki `--js`; terminal bo'lmasa (skriptlar, CI) TypeScript tanlanadi |
 | `rtn strip <fayl.ts>` | TypeScript fayldan qanday JavaScript chiqishini ko'rsatish |
 | `rtn upgrade` / `rtn update -r` | Eng so'nggi release'ga yangilash (`--check`, `--version x.y.z`, `--force`) |
 | `rtn` | REPL (terminalda) yoki stdin'ga yuborilgan skriptni bajarish |
