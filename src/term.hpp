@@ -1,7 +1,8 @@
 #pragma once
 
-// Terminal UI helpers for `rtn upgrade`: colors with a gradient, a spinner,
-// an animated progress bar and a box. Everything returns strings; nothing
+// Terminal UI helpers for `rtn upgrade`: a calm palette (the terminal's own
+// black/white text plus one blue accent), a spinner, an animated progress bar
+// and a box. Everything returns strings; nothing
 // here decides *whether* to animate (see term::init()).
 
 #include <string>
@@ -24,9 +25,8 @@ std::string fg(Rgb c);          // foreground color escape (truecolor or 256-col
 const char* reset();
 const char* dim();
 const char* bold();
-Rgb gradient(double t);         // brand gradient, t in [0, 1]
-// Each character gets its own color; `phase` shifts the gradient (for animation).
-std::string gradient_text(std::string_view s, double phase = 0);
+const char* accent();           // the one accent color: blue ("" without colors)
+std::string accent_text(std::string_view s);
 
 std::string spinner(int frame);
 // fraction < 0: unknown size (a pulse sweeps back and forth).
@@ -40,7 +40,7 @@ size_t visible_width(std::string_view s);  // ignores escape codes; counts code 
 void redraw_line(const std::string& s);
 void hide_cursor();
 void show_cursor();
-// A rounded box around `lines` with a gradient border. `frame` animates the border.
-std::string box(const std::vector<std::string>& lines, int frame);
+// A rounded box around `lines` with a blue border.
+std::string box(const std::vector<std::string>& lines);
 
 }  // namespace rtn::term

@@ -87,6 +87,10 @@ if script -qec true /dev/null > /dev/null 2>&1; then  # util-linux `script`: run
   cp "$RTN" "$BIN"
   out=$(env -u CI TERM=xterm-256color script -qec "'$BIN' upgrade --version 7.7.7" /dev/null 2>&1); code=$?
   check "animated upgrade: failed download is reported" '[ $code -ne 0 ] && [[ "$out" == *"download failed"* ]]' "$out"
+  out=$(env -u CI -u NO_COLOR TERM=xterm-256color script -qec "bash '$ROOT/install.sh' 9.9.9" /dev/null 2>&1); code=$?
+  check "animated install.sh in a terminal (progress bar, cursor restored)" \
+    '[ $code -eq 0 ] && [[ "$out" == *"Downloading"*"Downloaded"*"Verified"*"Installed"* ]] && [[ "$out" == *$'"'"'\e[?25h'"'"'* ]] && [ "$("$BIN" --version | awk "{print \$2}")" = 9.9.9 ]' "$out"
+  cp "$RTN" "$BIN"
 fi
 out=$("$ROOT/build/rtn" upgrade --version 9.9.9 2>&1); code=$?
 check "refuses to overwrite a source build" '[ $code -ne 0 ] && [[ "$out" == *"built from source"* ]]' "$out"

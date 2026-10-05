@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/rtn-1.6.1.png" alt="RunTime-Now 1.6.1" width="760">
+<img src="assets/rtn-1.6.2.png" alt="RunTime-Now 1.6.2" width="760">
 
 # ⚡ RunTime-Now
 
@@ -131,7 +131,7 @@ Qisqa manzil GitHub Pages orqali ishlaydi; o'sha skript
 `rtn upgrade` xuddi `bun upgrade` kabi ishlaydi: yangi release'ni yuklaydi, uning SHA-256 xeshini e'lon
 qilingan `SHA256SUMS` bilan solishtiradi, yangi binary ishlashini tekshiradi va shundan keyingina uni
 atomik almashtiradi. Biror narsa xato ketsa (yoki Ctrl+C bossangiz), joriy `rtn` o'zgarishsiz qoladi.
-Terminalda har bir bosqich animatsiya bilan ko'rsatiladi: tezlik va ETA'li gradient progress bar,
+Terminalda har bir bosqich sokin oq/qora/ko'k uslubda animatsiya bilan ko'rsatiladi: tezlik va ETA'li silliq progress bar,
 har bir bosqich uchun ✓ va yakuniy ramka.
 
 <p align="center"><img src="assets/rtn-upgrade.png" alt="Animatsiyali progress bar bilan rtn upgrade" width="720"></p>
@@ -199,7 +199,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.6.1 (QuickJS-ng 0.17.0)
+RunTime-Now v1.6.2 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const natija = await new Promise((r) => setTimeout(() => r("tayyor"), 100))
 > natija
@@ -553,7 +553,7 @@ src/
 ├── runtime.cpp/.hpp      JS dvigatel, event loop, taymerlar, I/O, ushlanmagan rejection'lar
 ├── repl.cpp              REPL (async eval, ko'p qatorli kiritish, TypeScript)
 ├── upgrade.cpp           rtn upgrade: yuklash, SHA-256 tekshiruvi, atomik almashtirish
-├── term.cpp/.hpp         rtn upgrade uchun terminal UI: gradient, spinner, progress bar
+├── term.cpp/.hpp         rtn upgrade uchun terminal UI: ranglar, spinner, progress bar
 ├── modules.cpp/.hpp      Modullarni topish va yuklash
 ├── builtins.cpp          Ichki JS'ni ishga tushishda bajaradi
 ├── util.cpp/.hpp         Yordamchi funksiyalar, Node uslubidagi xatolar
