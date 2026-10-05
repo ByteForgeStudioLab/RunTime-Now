@@ -57,9 +57,8 @@ bool g_color = false;
 const char* c(const char* code) { return g_color ? code : ""; }
 #define BOLD c("\x1b[1m")
 #define DIM c("\x1b[2m")
-#define GREEN c("\x1b[32m")
+#define BLUE term::accent()
 #define RED c("\x1b[31m")
-#define CYAN c("\x1b[36m")
 #define RESET c("\x1b[0m")
 
 int fail(const std::string& msg) {
@@ -252,7 +251,7 @@ std::string pad(std::string s) {
 
 void step_done(const std::string& label, const std::string& detail) {
     if (!term::fancy()) return;
-    term::redraw_line("  " + std::string(GREEN) + "✓" + RESET + " " + pad(label) + DIM + detail + RESET + "\n");
+    term::redraw_line("  " + std::string(BLUE) + "✓" + RESET + " " + pad(label) + DIM + detail + RESET + "\n");
 }
 
 int fail_step(const std::string& label, const std::string& msg) {
@@ -342,7 +341,10 @@ Download download(const std::string& url, const std::string& file, const std::st
         d.code = spin(pid, spinner_label);
     } else {
         double speed = 0, last_bytes = 0, last_t = 0;
-        d.code = wait_animated(pid, [&](int frame) {
+        double shown = 0;  // what the bar shows: eases toward the real progress, so it glides
+        int last_frame = 0;
+        auto draw = [&](int frame, bool done) {
+            last_frame = frame;
             double now = elapsed();
             double got = file_size(file);
             double total = content_length(headers);
@@ -353,6 +355,13 @@ Download download(const std::string& url, const std::string& file, const std::st
                 last_t = now;
             }
             double fraction = total > 0 ? std::min(got / total, 1.0) : -1;
+            if (done && total > 0) got = total;
+            if (fraction >= 0) {
+                shown = done ? 1.0 : shown + (fraction - shown) * 0.35;
+                if (fraction - shown < 0.002) shown = fraction;
+                fraction = shown;
+                if (!done) got = std::min(got, fraction * total);
+            }
 
             std::string stats;
             char pct[16];
@@ -378,9 +387,16 @@ Download download(const std::string& url, const std::string& file, const std::st
                 extra += std::string(DIM) + "  ETA " + term::format_seconds((total - got) / speed) + RESET;
             }
             int bar = std::clamp(room, 8, 34);
-            term::redraw_line("  " + term::spinner(frame) + " " + pad(label) + term::progress_bar(fraction, bar, frame) +
+            std::string icon = done ? std::string(BLUE) + "✓" + RESET : term::spinner(frame);
+            term::redraw_line("  " + icon + " " + pad(label) + term::progress_bar(fraction, bar, frame) +
                               "  " + stats + extra);
-        });
+        };
+        d.code = wait_animated(pid, [&](int frame) { draw(frame, false); });
+        if (d.code == 0) {  // let the bar finish filling up before the step is marked done
+            draw(last_frame + 1, true);
+            timespec ts{0, 250 * 1000 * 1000};
+            nanosleep(&ts, nullptr);
+        }
     }
     d.seconds = elapsed();
     d.bytes = file_size(file);
@@ -496,19 +512,10 @@ struct CursorGuard {
     ~CursorGuard() { term::show_cursor(); }
 };
 
-// The final message, with a border whose colors flow around it for a moment.
+// The final message in a blue box.
 void celebrate(const std::vector<std::string>& lines) {
-    std::string first = term::box(lines, 0);
-    std::fputs(first.c_str(), stdout);
+    std::fputs(term::box(lines).c_str(), stdout);
     std::fflush(stdout);
-    if (!term::fancy()) return;
-    int height = static_cast<int>(lines.size()) + 2;
-    for (int frame = 1; frame <= 24 && !g_interrupted; ++frame) {
-        timespec ts{0, 40 * 1000 * 1000};
-        nanosleep(&ts, nullptr);
-        std::printf("\x1b[%dA%s", height, term::box(lines, frame).c_str());
-        std::fflush(stdout);
-    }
 }
 
 }  // namespace
@@ -569,7 +576,7 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
     TempDir tmp;
     if (tmp.path.empty()) return fail("could not create a temporary directory");
     CursorGuard cursor;
-    if (fancy) std::printf("\n  %s  %supgrade%s\n\n", term::gradient_text("⚡ RunTime-Now").c_str(), DIM, RESET);
+    if (fancy) std::printf("\n  %s●%s %sRunTime-Now%s  %supgrade%s\n\n", BLUE, RESET, BOLD, RESET, DIM, RESET);
 
     // 1. Which version?
     std::string current = RTN_VERSION;
@@ -597,22 +604,22 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
             std::printf("\n");
             if (newer) {
                 celebrate({std::string(BOLD) + "A new version of rtn is available" + RESET,
-                           std::string(DIM) + current + RESET + "  →  " + term::gradient_text(target),
-                           std::string("Run ") + CYAN + "rtn upgrade" + RESET + " to install it"});
+                           std::string(DIM) + current + RESET + "  →  " + BLUE + BOLD + target + RESET,
+                           std::string("Run ") + BLUE + "rtn upgrade" + RESET + " to install it"});
             } else {
-                celebrate({std::string(GREEN) + "✓ " + RESET + "rtn " + current + " is up to date",
+                celebrate({std::string(BLUE) + "✓ " + RESET + "rtn " + current + " is up to date",
                            std::string(DIM) + "latest release: " + target + RESET});
             }
         } else if (newer) {
             std::printf("A new version of rtn is available: %s%s%s → %s%s%s\nRun %srtn upgrade%s to install it.\n",
-                        DIM, current.c_str(), RESET, GREEN, target.c_str(), RESET, CYAN, RESET);
+                        DIM, current.c_str(), RESET, BLUE, target.c_str(), RESET, BLUE, RESET);
         } else {
             std::printf("rtn %s is up to date (latest release: %s).\n", current.c_str(), target.c_str());
         }
         return 0;
     }
     if (!force && target == current) {
-        std::printf("%s%srtn is already on version %s%s%s — nothing to do.\n", fancy ? "\n  " : "", GREEN, BOLD,
+        std::printf("%s%srtn is already on version %s%s%s — nothing to do.\n", fancy ? "\n  " : "", BLUE, BOLD,
                     current.c_str(), RESET);
         return 0;
     }
@@ -632,7 +639,7 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
     std::string name = "rtn-" + *asset;
     std::string base = releases + "/download/v" + target;
     if (!fancy) {
-        std::printf("%sUpgrading rtn%s %s → %s%s%s %s(%s)%s\n", BOLD, RESET, current.c_str(), GREEN, target.c_str(),
+        std::printf("%sUpgrading rtn%s %s → %s%s%s %s(%s)%s\n", BOLD, RESET, current.c_str(), BLUE, target.c_str(),
                     RESET, DIM, asset->c_str(), RESET);
         std::printf("  %sdownloading%s %s/%s.tar.gz\n", DIM, RESET, base.c_str(), name.c_str());
     }
@@ -703,15 +710,15 @@ int run_upgrade(int argc, char** argv, const std::string& self_path) {
     }
     std::string notes = "https://github.com/" + std::string(RTN_REPO) + "/releases/tag/v" + target;
     if (!fancy) {
-        std::printf("%s✓%s Upgraded to %srtn %s%s — %s\n", GREEN, RESET, BOLD, target.c_str(), RESET, exe.c_str());
+        std::printf("%s✓%s Upgraded to %srtn %s%s — %s\n", BLUE, RESET, BOLD, target.c_str(), RESET, exe.c_str());
         std::printf("  What's new: %s\n", notes.c_str());
         return 0;
     }
     step_done("Installed", exe.string());
     std::printf("\n");
-    celebrate({std::string(GREEN) + "✓ " + RESET + BOLD + "rtn " + target + " is ready" + RESET + DIM + "   (was v" +
+    celebrate({std::string(BLUE) + "✓ " + RESET + BOLD + "rtn " + target + " is ready" + RESET + DIM + "   (was v" +
                    current + ")" + RESET,
-               std::string(DIM) + "What's new  " + RESET + CYAN + notes + RESET});
+               std::string(DIM) + "What's new  " + RESET + BLUE + notes + RESET});
     return 0;
 }
 

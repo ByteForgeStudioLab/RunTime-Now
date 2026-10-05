@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2 — 2026-10-05
+
+- **A calmer download screen** for `rtn upgrade` / `rtn update` and the installer: the terminal's own black/white text with a single blue accent, instead of the multi-color gradient. Works on dark and light terminals alike.
+- **Smoother animation**: the progress bar and percentage glide toward the real value, a soft light-blue glint moves along the bar, and the bar fills to 100% before the step is checked off.
+- **Installer** (`curl … | bash`): the same look, now with a live progress bar while the release downloads; the cursor is always restored, even on errors or Ctrl+C.
+
 ## 1.6.1 — 2026-10-05
 
 - **`navigator`** global, like in Node, Deno and Bun: `userAgent` (`rtn/1.6.1`), `hardwareConcurrency`, `platform`, `language` / `languages` (from `LANG`).

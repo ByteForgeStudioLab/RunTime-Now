@@ -16,16 +16,18 @@ bool g_color = false;
 bool g_truecolor = false;
 bool g_fancy = false;
 
-// Cyan -> violet -> pink.
-constexpr Rgb kStops[] = {{34, 211, 238}, {129, 140, 248}, {192, 132, 252}, {244, 114, 182}};
-constexpr int kStopCount = sizeof(kStops) / sizeof(kStops[0]);
+// Tailwind blue-500 for everything that is "ours"; blue-300 for the highlight
+// that glides along the progress bar. Text keeps the terminal's own color, so
+// it reads well on dark and light backgrounds alike.
+constexpr Rgb kBlue = {59, 130, 246};
+constexpr Rgb kBlueLight = {147, 197, 253};
 
 Rgb mix(Rgb a, Rgb b, double t) {
     auto lerp = [t](int x, int y) { return static_cast<int>(std::lround(x + (y - x) * t)); };
     return {lerp(a.r, b.r), lerp(a.g, b.g), lerp(a.b, b.b)};
 }
 
-// 0 -> 1 -> 0 as `phase` goes around, so a moving gradient has no seam.
+// 0 -> 1 -> 0 as `t` goes from 0 to 1 (smooth back-and-forth motion).
 double wave(double t) {
     t = t - std::floor(t);
     return t < 0.5 ? t * 2 : 2 - t * 2;
@@ -68,71 +70,55 @@ const char* reset() { return g_color ? "\x1b[0m" : ""; }
 const char* dim() { return g_color ? "\x1b[2m" : ""; }
 const char* bold() { return g_color ? "\x1b[1m" : ""; }
 
-Rgb gradient(double t) {
-    t = std::clamp(t, 0.0, 1.0) * (kStopCount - 1);
-    int i = std::min(static_cast<int>(t), kStopCount - 2);
-    return mix(kStops[i], kStops[i + 1], t - i);
+const char* accent() {
+    static std::string blue;
+    if (!g_color) return "";
+    if (blue.empty()) blue = fg(kBlue);
+    return blue.c_str();
 }
 
-std::string gradient_text(std::string_view s, double phase) {
-    if (!g_color) return std::string(s);
-    size_t n = std::max<size_t>(visible_width(s), 1);
-    std::string out;
-    size_t i = 0;
-    for (size_t k = 0; k < s.size();) {
-        size_t len = 1;  // copy whole UTF-8 sequences
-        while (k + len < s.size() && (static_cast<unsigned char>(s[k + len]) & 0xC0) == 0x80) ++len;
-        out += fg(gradient(wave(static_cast<double>(i++) / n * 0.5 + phase)));
-        out.append(s.substr(k, len));
-        k += len;
-    }
-    return out + reset();
+std::string accent_text(std::string_view s) {
+    return std::string(accent()) + std::string(s) + reset();
 }
 
 std::string spinner(int frame) {
     static const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-    return fg(gradient(wave(frame * 0.04))) + frames[frame % 10] + reset();
+    return std::string(accent()) + frames[frame % 10] + reset();
 }
 
 std::string progress_bar(double fraction, int width, int frame) {
-    const Rgb track = {64, 64, 80};
-    std::string out;
     if (!g_color) {  // plain ASCII (only used if someone forces it)
         int full = fraction < 0 ? 0 : static_cast<int>(fraction * width);
         return "[" + std::string(full, '#') + std::string(width - full, '-') + "]";
     }
-    if (fraction < 0) {  // unknown size: a glowing segment sweeps back and forth
-        const int seg = std::max(4, width / 4);
+    // The empty part of the track: the terminal's text color, dimmed (gray on any background).
+    auto track = [&](int n) {
+        std::string t = std::string(reset()) + dim();
+        for (int i = 0; i < n; ++i) t += "━";
+        return t + reset();
+    };
+    std::string out;
+    if (fraction < 0) {  // unknown size: a blue segment glides back and forth
+        const int seg = std::max(4, width / 5);
         int span = width - seg;
-        int pos = span > 0 ? static_cast<int>(std::lround(wave(frame / 40.0) * span)) : 0;
-        for (int i = 0; i < width; ++i) {
-            bool lit = i >= pos && i < pos + seg;
-            out += fg(lit ? gradient(static_cast<double>(i - pos) / seg) : track) + "━";
-        }
-        return out + reset();
+        int pos = span > 0 ? static_cast<int>(std::lround(wave(frame / 50.0) * span)) : 0;
+        out += track(pos) + accent();
+        for (int i = 0; i < seg; ++i) out += "━";
+        return out + track(width - pos - seg);
     }
     fraction = std::clamp(fraction, 0.0, 1.0);
     double filled = fraction * width;
     int full = static_cast<int>(filled);
     bool half = filled - full >= 0.5 && full < width;
-    // A highlight that runs along the filled part, like light on brushed metal.
-    double shine = std::fmod(frame * 0.9, full + 12.0) - 6.0;
+    // A soft light-blue glint travels along the filled part every couple of seconds.
+    double glint = std::fmod(frame * 0.6, full + 24.0) - 4.0;
     for (int i = 0; i < full; ++i) {
-        Rgb c = gradient(static_cast<double>(i) / std::max(width - 1, 1));
-        double d = std::abs(i - shine);
-        if (d < 3) c = mix(c, {255, 255, 255}, (1 - d / 3) * 0.55);
-        out += fg(c) + "━";
+        double d = std::abs(i - glint);
+        out += d < 4 ? fg(mix(kBlueLight, kBlue, d / 4)) : accent();
+        out += "━";
     }
-    int i = full;
-    if (half) {
-        out += fg(gradient(static_cast<double>(i) / std::max(width - 1, 1))) + "╸";
-        ++i;
-    }
-    if (i < width) {
-        out += fg(track);
-        for (; i < width; ++i) out += "━";
-    }
-    return out + reset();
+    if (half) out += std::string(accent()) + "╸";
+    return out + track(width - full - (half ? 1 : 0));
 }
 
 std::string format_bytes(double n) {
@@ -180,27 +166,18 @@ void show_cursor() {
     }
 }
 
-std::string box(const std::vector<std::string>& lines, int frame) {
+std::string box(const std::vector<std::string>& lines) {
     size_t inner = 0;
     for (auto& l : lines) inner = std::max(inner, visible_width(l));
     inner += 4;  // two spaces of padding on each side
-    const int perimeter = static_cast<int>(inner) * 2 + 4;
-    int k = 0;  // position along the border, so the colors flow around the box
-    auto border = [&](const char* ch) {
-        return fg(gradient(wave(static_cast<double>(k++) / perimeter + frame * 0.03))) + ch;
-    };
-    std::string out = "  " + border("╭");
-    for (size_t i = 0; i < inner; ++i) out += border("─");
-    out += border("╮") + reset() + "\n";
+    std::string bar;
+    for (size_t i = 0; i < inner; ++i) bar += "─";
+    std::string b = accent(), r = reset();
+    std::string out = "  " + b + "╭" + bar + "╮" + r + "\n";
     for (auto& l : lines) {
-        out += "  " + border("│") + reset() + "  " + l;
-        out += std::string(inner - 2 - visible_width(l), ' ');
-        out += border("│") + reset() + "\n";
+        out += "  " + b + "│" + r + "  " + l + std::string(inner - 2 - visible_width(l), ' ') + b + "│" + r + "\n";
     }
-    out += "  " + border("╰");
-    for (size_t i = 0; i < inner; ++i) out += border("─");
-    out += border("╯") + reset() + "\n";
-    return out;
+    return out + "  " + b + "╰" + bar + "╯" + r + "\n";
 }
 
 }  // namespace rtn::term

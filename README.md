@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/rtn-1.6.1.png" alt="RunTime-Now 1.6.1" width="760">
+<img src="assets/rtn-1.6.2.png" alt="RunTime-Now 1.6.2" width="760">
 
 # ⚡ RunTime-Now
 
@@ -131,7 +131,7 @@ The short URL is served by GitHub Pages; the same script is also at
 `rtn upgrade` works like `bun upgrade`: it downloads the new release, checks its SHA-256 against the
 published `SHA256SUMS`, makes sure the new binary runs, and only then swaps it in atomically. If
 anything fails (or you press Ctrl+C), your current `rtn` stays untouched. In a terminal every step is
-animated: a gradient progress bar with speed and ETA, a checkmark per step and a summary box.
+animated in a calm black/white/blue style: a smooth progress bar with speed and ETA, a checkmark per step and a summary box.
 
 <p align="center"><img src="assets/rtn-upgrade.png" alt="rtn upgrade with an animated progress bar" width="720"></p>
 
@@ -195,7 +195,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.6.1 (QuickJS-ng 0.17.0)
+RunTime-Now v1.6.2 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const res = await new Promise((r) => setTimeout(() => r("done"), 100))
 > res
@@ -547,7 +547,7 @@ src/
 ├── runtime.cpp/.hpp      JS engine, event loop, timers, I/O, unhandled rejections
 ├── repl.cpp              REPL (async eval, multi-line input, TypeScript)
 ├── upgrade.cpp           rtn upgrade: download, verify SHA-256, atomic replace
-├── term.cpp/.hpp         Terminal UI for rtn upgrade: gradient, spinner, progress bar
+├── term.cpp/.hpp         Terminal UI for rtn upgrade: colors, spinner, progress bar
 ├── modules.cpp/.hpp      Module resolution and loading
 ├── builtins.cpp          Runs the embedded JS at startup
 ├── util.cpp/.hpp         Helpers, Node-style errors
