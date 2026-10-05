@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="assets/rtn-1.6.2.png" alt="RunTime-Now 1.6.2" width="760">
+<img src="assets/rtn-2.0.0.png" alt="RunTime-Now 2.0.0" width="760">
 
 # ⚡ RunTime-Now
 
 **A small, fast JavaScript & TypeScript runtime written in C++**
 
 Run `.js` and `.ts` files, build HTTP servers and clients with Web-standard `fetch` / `Request` / `Response`,
-all from a single **~3 MB** binary that starts in **~7 ms** and serves HTTP in **~6 MB of RAM**.
+use npm packages and write tests — all from a single **~3 MB** binary that starts in **~6 ms**.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -54,6 +54,9 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
   - [Timers & microtasks](#timers--microtasks)
   - [process](#process)
   - [Modules](#modules)
+  - [npm packages and CommonJS](#npm-packages-and-commonjs)
+  - [Node built-in modules](#node-built-in-modules)
+  - [Testing your code: `rtn test`](#testing-your-code-rtn-test)
   - [File system: `rtn:fs`](#file-system-rtnfs)
   - [HTTP server: `rtn.serve()`](#http-server-rtnserve)
   - [Web APIs](#web-apis)
@@ -73,11 +76,11 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 ## Why RunTime-Now?
 
 Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a runtime you can
-**read in an afternoon** (about 6,000 lines of C++ and JavaScript) that still does real work:
+**read in a weekend** (about 12,000 lines of C++ and JavaScript) that still does real work:
 
 - 🧩 **Learn how a runtime works.** The event loop, module loader, HTTP parser and TypeScript
   stripper are small, commented and tested.
-- 🪶 **Tiny footprint.** A single ~3 MB binary with no dependencies (fully static), ~10 ms startup and ~3 MB RSS for an HTTP server.
+- 🪶 **Tiny footprint.** A single ~3 MB binary with no dependencies (fully static), ~6 ms startup and ~3 MB RSS for an HTTP server.
 - 🟦 **TypeScript out of the box.** No `tsc`, no bundler, no config. The built-in stripper keeps
   line and column numbers, so stack traces point at your `.ts` source.
 - 🌐 **Web-standard APIs.** `fetch`-style `Request` / `Response` / `Headers` / `URL`, the same code
@@ -89,13 +92,15 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 |---|---|
 | **Language** | ES2024+ via [QuickJS-ng](https://github.com/quickjs-ng/quickjs): classes with `#private` fields, `async`/`await`, **top-level `await`**, BigInt, Proxy, `Array.prototype.toSorted`, `Object.groupBy`, `Promise.withResolvers`, … |
 | **TypeScript** | Runs `.ts` / `.mts` directly. Supports types, interfaces, generics, `enum`, `const enum`, parameter properties, overloads, `abstract`, `declare`, `satisfies`, `as const`, and import elision |
+| **npm & CommonJS** | Packages from `node_modules` (`exports`, `imports`, `main`, conditions), `require()`, `module.exports`, ESM ⇄ CommonJS interop. Tested with lodash, zod, dayjs, chalk, date-fns, uuid, yaml, semver, … |
 | **Modules** | ES modules, relative imports with extension resolution, JSON imports, `import "./x.js"` → `x.ts`, dynamic `import()`, `import.meta` |
 | **Event loop** | Microtasks → `process.nextTick` → timers → **epoll** I/O, with Node-compatible ordering |
 | **HTTP server** | `rtn.serve()`: HTTP/1.1, keep-alive, pipelining, chunked bodies, `Expect: 100-continue`, idle and request timeouts, size limits |
 | **HTTP client** | **`fetch()`** with redirects, `AbortSignal` timeouts, `data:` URLs and Node-style errors |
 | **Web APIs** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
-| **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write`, …), `node:fs`, **`node:fs/promises`** (non-blocking), **`node:path`** |
-| **Developer experience** | Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
+| **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (an `EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (non-blocking), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hashes, HMAC), `module`, `timers`, `tty` |
+| **Testing** | `rtn test`: built-in test runner with the Jest/Bun API (`describe`, `test`, `expect`, mocks, hooks) |
+| **Developer experience** | `rtn init` for a new TypeScript project, Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
 
 ## Installation
 
@@ -179,9 +184,11 @@ cmake --build build
 
 | Command | Description |
 |---|---|
-| `rtn <file> [args...]` | Run a `.js`, `.mjs`, `.ts` or `.mts` file (`process.argv` gets the args) |
+| `rtn <file> [args...]` | Run a `.js`, `.mjs`, `.cjs`, `.ts`, `.mts` or `.cts` file (`process.argv` gets the args) |
 | `rtn run <file> [args...]` | Same as above |
 | `rtn -e "<code>" [args...]` | Evaluate code as an ES module |
+| `rtn test [paths] [-t name]` | Run the tests in `*.test.*`, `*_test.*`, `*.spec.*` files ([rtn test](#testing-your-code-rtn-test)) |
+| `rtn init [dir]` | Create a TypeScript project: `package.json`, `index.ts`, a test, `tsconfig.json` |
 | `rtn strip <file.ts>` | Print the JavaScript produced from a TypeScript file |
 | `rtn upgrade` / `rtn update -r` | Upgrade to the latest release (`--check`, `--version x.y.z`, `--force`) |
 | `rtn` | Start the REPL (on a terminal) or run a script piped into stdin |
@@ -195,7 +202,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.6.2 (QuickJS-ng 0.17.0)
+RunTime-Now v2.0.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const res = await new Promise((r) => setTimeout(() => r("done"), 100))
 > res
@@ -355,8 +362,8 @@ import { helper } from "./utils.ts";     // relative import
 import { helper } from "./utils";        // tries .js .mjs .ts .mts .json, then index.js / index.ts
 import { helper } from "./utils.js";     // falls back to utils.ts (TypeScript ESM convention)
 import data from "./data.json";          // JSON (default export)
-import fs from "rtn:fs";                 // built-in module (also "node:fs", "fs")
-import path from "node:path";            // node:path, node:fs/promises
+import fs from "node:fs";                // built-in module (also "fs", "rtn:fs")
+import _ from "lodash";                  // npm package from node_modules
 const mod = await import("./lazy.js");   // dynamic import
 
 import.meta.url;        // "file:///abs/path/file.ts"
@@ -365,7 +372,98 @@ import.meta.dirname;    // "/abs/path"
 import.meta.main;       // true for the entry module
 ```
 
-Bare specifiers (`import express from "express"`) are **not supported yet**: see the [roadmap](#limitations--roadmap).
+### npm packages and CommonJS
+
+Install packages with any package manager (`npm install`, `pnpm`, `bun install`, …) and use them:
+
+```ts
+import { z } from "zod";                          // ES module package
+import _ from "lodash";                           // CommonJS package: module.exports is the default export
+import { chunk } from "lodash";                   // ...and its properties are named exports
+const dayjs = require("dayjs");                   // in a .cjs file (or any CommonJS file)
+```
+
+| | How it works |
+|---|---|
+| Resolution | `node_modules` up the directory tree, `package.json` `"exports"` (subpaths, `*` patterns, conditions `rtn` → `node` → `import`/`require` → `default`), `"imports"` (`#internal`), `"main"`, index files, `NODE_PATH` |
+| CommonJS | `require()`, `module.exports`, `exports`, `__filename`, `__dirname`, `require.resolve`, `require.cache`, `require.main`, `createRequire(import.meta.url)` |
+| Which files are CommonJS? | `.cjs`; `.js`/`.ts` when the nearest `package.json` says `"type": "commonjs"`; without `"type"`, files that use `require`/`module.exports` and no `import`/`export` (like Node 22) |
+| Interop | `import` of a CommonJS file gives `module.exports` as the default export and its properties as named exports; `require()` of an ES module works when it has no top-level `await` |
+| TypeScript | `.ts`, `.mts`, `.cts` files work everywhere, also inside `node_modules` |
+
+Not yet: native addons (`.node`), `node:child_process`, `node:stream`, `node:http` (use `rtn.serve()` and `fetch()`).
+
+### Node built-in modules
+
+Every module works as `node:x` and `x`; `import fs from "fs"` and `require("fs")` give the same object.
+
+| Module | What's there |
+|---|---|
+| `fs`, `fs/promises` | Sync API (`readFileSync`, `writeFileSync`, `statSync`, `mkdirSync`, `rmSync`, …) and promises (run on a thread pool) |
+| `path` | The POSIX implementation from Node (output checked against Node) |
+| `events` | `EventEmitter` (`on`, `once`, `off`, `emit`, `prependListener`, …), `once()`, `on()` |
+| `buffer` | `Buffer` (also global): utf8, hex, base64, base64url, latin1, ascii, utf16le; `read/writeUInt32LE` & co. |
+| `util` | `format`, `inspect`, `promisify`, `callbackify`, `inherits`, `deprecate`, `isDeepStrictEqual`, `types`, `styleText` |
+| `assert`, `assert/strict` | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match`, … |
+| `crypto` | `createHash` / `createHmac` (sha256, sha1, md5), `randomBytes`, `randomInt`, `randomUUID`, `timingSafeEqual`; global `crypto.subtle.digest` |
+| `os`, `url`, `module`, `timers`, `timers/promises`, `process`, `tty` | The commonly used functions (`os.cpus()`, `fileURLToPath`, `createRequire`, `setTimeout` promise, …) |
+
+`process` is an `EventEmitter` (`process.on("exit")`), and `global`, `setImmediate`, `process.emitWarning` exist.
+**Note (2.0):** `process.version` reports the Node version whose APIs rtn follows (`v22.12.0`), so packages
+pick their Node code paths; rtn's own version is `process.versions.rtn` / `rtn.version`.
+
+### Testing your code: `rtn test`
+
+```ts
+// math.test.ts
+import { describe, test, expect, mock } from "rtn:test";
+
+describe("add", () => {
+  test("adds numbers", () => {
+    expect(1 + 2).toBe(3);
+    expect({ a: [1, 2] }).toEqual({ a: [1, 2] });
+  });
+
+  test("works with async code", async () => {
+    await expect(Promise.resolve(42)).resolves.toBe(42);
+  });
+
+  test.each([[1, 1, 2], [2, 3, 5]])("%i + %i = %i", (a, b, sum) => {
+    expect(a + b).toBe(sum);
+  });
+});
+
+test("mocks", () => {
+  const fn = mock((x: number) => x * 2);
+  fn(21);
+  expect(fn).toHaveBeenCalledWith(21);
+});
+```
+
+```text
+$ rtn test
+
+● rtn test v2.0.0
+
+math.test.ts:
+  ✓ add › adds numbers [0.09ms]
+  ✓ add › works with async code [0.12ms]
+  ✓ add › 1 + 1 = 2 [0.05ms]
+  ✓ add › 2 + 3 = 5 [0.04ms]
+  ✓ mocks [0.10ms]
+
+ 5 pass
+ Ran 5 tests across 1 file. [3.1ms]
+```
+
+| | |
+|---|---|
+| Files | `*.test.*`, `*_test.*`, `*.spec.*` (`.js .ts .mjs .mts .cjs .cts`), `node_modules` skipped; `rtn test src/` or `rtn test math` to narrow down, `-t <regex>` to filter by test name |
+| Structure | `test` / `it`, `describe`, `.skip`, `.only`, `.todo`, `.each`, `.if`, `beforeAll`, `afterAll`, `beforeEach`, `afterEach`, `done` callbacks, timeouts (`--timeout`, per test, `setDefaultTimeout`) |
+| `expect` | `toBe`, `toEqual`, `toStrictEqual`, `toMatchObject`, `toContain`, `toHaveLength`, `toHaveProperty`, `toMatch`, `toThrow`, `toBeCloseTo`, `toBeInstanceOf`, comparisons, `toHaveBeenCalled*`, `.not`, `.resolves`, `.rejects`, `expect.any()` and friends |
+| Mocks | `mock(fn)` / `fn()` (`mockReturnValue`, `mockResolvedValue`, `mockImplementation`, …), `spyOn(object, method)` |
+
+Exit code `1` when a test fails, so it fits CI.
 
 ### File system: `rtn:fs`
 
@@ -549,19 +647,24 @@ src/
 ├── upgrade.cpp           rtn upgrade: download, verify SHA-256, atomic replace
 ├── term.cpp/.hpp         Terminal UI for rtn upgrade: colors, spinner, progress bar
 ├── modules.cpp/.hpp      Module resolution and loading
-├── builtins.cpp          Runs the embedded JS at startup
+├── builtins.cpp          Runs the embedded JS (compiled to bytecode at build time) at startup
 ├── util.cpp/.hpp         Helpers, Node-style errors
 ├── typescript/strip.cpp  TypeScript → JavaScript (tokenizer + type eraser)
 ├── js/events.js          EventTarget, Event, AbortController, AbortSignal
 ├── js/web.js             URL, URLSearchParams, Headers, Request, Response, TextEncoder/Decoder
 ├── js/fetch.js           fetch()
 ├── js/crypto.js          crypto, structuredClone
-├── js/modules.js         node:path, node:fs/promises
+├── js/modules.js         node:fs, node:path, node:fs/promises
+├── js/buffer.js          Buffer
+├── js/node.js            node:events, util, os, assert, url, crypto, timers, process
+├── js/cjs.js             npm package resolution, CommonJS require()
+├── js/test.js, init.js   rtn test, rtn init
 ├── js/http.js            rtn.serve()
 └── bindings/             console, timers, process, fs, encoding, http, fetch, crypto
 tests/                    Test suite (run.sh, cases/, strip/, http_test.py, fetch_test.py, upgrade_test.sh)
 install.sh                One-line installer (curl … | bash)
 .github/workflows/        CI (every push) and release (a version bump on main, or a v* tag)
+tools/embed_js.cpp        Build step: compiles src/js/*.js to QuickJS bytecode
 tools/loadgen.cpp         HTTP/1.1 load generator used for the benchmarks
 third_party/quickjs/      QuickJS-ng (git submodule)
 ```
@@ -600,9 +703,11 @@ tests/run.sh --update  # regenerate expected outputs after an intentional change
 
 | Suite | What it checks |
 |---|---|
-| `tests/cases/` | 20 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto. Several outputs are **identical to Node or Deno** |
+| `tests/cases/` | 21 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto, and `node-compat.mjs` (Buffer, events, util, assert, crypto, …), whose output is **identical to Node 22**. Several outputs are **identical to Node or Deno** |
 | `tests/strip/` | Exact TypeScript → JavaScript output, and that line numbers are preserved |
 | `tests/http_test.py` | 27 HTTP checks over raw sockets: pipelining, chunked bodies, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 concurrent requests, graceful `stop()` |
+| `tests/fixtures/project` | npm package resolution and CommonJS: `exports` conditions and patterns, `imports`, scoped packages, nested `node_modules`, `require` cycles, `__esModule`, `require(esm)` |
+| `tests/fixtures/testrunner` | `rtn test` output (passing, failing, skipped, todo, timeouts, a broken file) and `rtn init` |
 | `tests/fetch_test.py` | 16 `fetch()` checks against a raw-socket server: chunked, close-delimited, 1xx, truncated, oversized and malformed responses |
 | `tests/upgrade_test.sh` | `install.sh` and `rtn upgrade` against a fake release server: pinned and latest installs, PATH setup, tampered checksums, atomic upgrade, the animated terminal mode |
 | CLI + REPL | Arguments, stdin scripts, REPL session with `await` |
@@ -617,10 +722,12 @@ RunTime-Now is young. Here is what doesn't exist yet, roughly in priority order:
 
 - [x] `fetch()` (HTTP client) — `https:` waits for TLS below
 - [x] `node:path`, async `fs` (`fs/promises`)
-- [ ] npm packages: resolving `node_modules` and bare specifiers
-- [ ] CommonJS `require()`
+- [x] npm packages: `node_modules`, `exports` / `imports`, bare specifiers
+- [x] CommonJS `require()` and ESM ⇄ CommonJS interop
+- [x] A test runner (`rtn test`)
 - [x] `crypto.randomUUID()` / `getRandomValues()`, `structuredClone`, `AbortController`, `EventTarget`
-- [ ] `crypto.subtle`, `Buffer`
+- [x] `Buffer`, `crypto.subtle.digest`, `node:events` / `util` / `os` / `assert`
+- [ ] `node:stream`, `node:child_process`, `node:http`, more of `crypto.subtle`
 - [ ] Streaming bodies (`ReadableStream`), `FormData`, `Blob`
 - [ ] WebSocket, HTTPS/TLS
 - [ ] `Intl` (locale-aware formatting)
