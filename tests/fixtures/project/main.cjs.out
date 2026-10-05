@@ -1,0 +1,5 @@
+main.cjs: true . string 10
+json: 42 | esm from cjs: 42
+cache: true true
+tick 1
+exit event, code 0

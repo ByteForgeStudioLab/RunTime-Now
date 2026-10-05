@@ -26,6 +26,9 @@ set(RTN_JS_FILES
     ${CMAKE_SOURCE_DIR}/src/js/fetch.js
     ${CMAKE_SOURCE_DIR}/src/js/crypto.js
     ${CMAKE_SOURCE_DIR}/src/js/modules.js
+    ${CMAKE_SOURCE_DIR}/src/js/buffer.js
+    ${CMAKE_SOURCE_DIR}/src/js/node.js
+    ${CMAKE_SOURCE_DIR}/src/js/cjs.js
     ${CMAKE_SOURCE_DIR}/src/js/navigator.js
     ${CMAKE_SOURCE_DIR}/src/js/http.js
 )
@@ -57,6 +60,7 @@ add_executable(rtn
     src/bindings/http.cpp
     src/bindings/fetch.cpp
     src/bindings/crypto.cpp
+    src/bindings/os.cpp
     src/builtins.cpp
     ${CMAKE_BINARY_DIR}/embedded_js.cpp
 )

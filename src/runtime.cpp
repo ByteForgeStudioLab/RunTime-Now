@@ -120,6 +120,17 @@ int Runtime::run_file(const std::string& path) {
         std::fprintf(stderr, "error: Module not found \"%s\"\n", path.c_str());
         return 1;
     }
+    if (is_commonjs_file(ctx_, abs.string())) {
+        // A CommonJS entry point: a tiny ES module imports it, which runs it through require().
+        JSValue p = JS_NewString(ctx_, abs.c_str());
+        JS_FreeValue(ctx_, call_internal(ctx_, "setMainPath", 1, &p));
+        JS_FreeValue(ctx_, p);
+        std::string quoted = abs.string();
+        for (size_t i = 0; i < quoted.size(); ++i) {
+            if (quoted[i] == '\\' || quoted[i] == '"') quoted.insert(i++, 1, '\\');
+        }
+        return eval_module("import \"" + quoted + "\";\n", (abs.parent_path() / "[main]").string());
+    }
     std::string code;
     if (!load_source(ctx_, abs.string(), code)) {
         dump_pending_exception(ctx_);
@@ -182,6 +193,14 @@ int Runtime::eval_module(const std::string& code, const std::string& filename) {
     JS_FreeValue(ctx_, promise);
     main_promise_ = nullptr;
 
+    // process.on("exit", ...) listeners; they may still change process.exitCode.
+    JSValue code_val = JS_NewInt32(ctx_, code_out);
+    JSValue r = call_internal(ctx_, "emitExit", 1, &code_val);
+    if (JS_IsException(r)) {
+        dump_pending_exception(ctx_);
+        code_out = code_out ? code_out : 1;
+    }
+    JS_FreeValue(ctx_, r);
     if (code_out == 0) {
         // Respect `process.exitCode = n`.
         JSValue global = JS_GetGlobalObject(ctx_);

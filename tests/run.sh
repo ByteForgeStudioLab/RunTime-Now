@@ -31,9 +31,10 @@ expect() {  # name expected_file actual_output
   if d=$(diff <(printf "%s\n" "$3") "$2"); then ok "$1"; else fail "$1" "$d"; fi
 }
 
+shopt -s nullglob
 echo "cases:"
 cd "$ROOT/tests/cases"
-for f in *.js *.ts; do
+for f in *.js *.ts *.mjs *.cjs; do
   name="${f%.*}"
   raw=$("$RTN" "$f" 2>&1 < /dev/null)
   code=$?
@@ -42,6 +43,16 @@ for f in *.js *.ts; do
   [ -f "$name.exit" ] && want_code=$(cat "$name.exit")
   if [ "$code" != "$want_code" ]; then fail "$f" "exit code $code, expected $want_code"; continue; fi
   expect "$f" "$name.out" "$out"
+done
+
+echo "packages:"
+cd "$ROOT/tests/fixtures/project"  # node_modules, package.json exports/imports, CommonJS
+for f in app.mjs main.cjs; do
+  raw=$("$RTN" "$f" 2>&1 < /dev/null)
+  code=$?
+  out=$(printf "%s\n" "$raw" | normalize)
+  if [ "$code" != 0 ]; then fail "$f" "exit code $code"$'\n'"$out"; continue; fi
+  expect "project/$f" "$f.out" "$out"
 done
 
 echo "strip:"

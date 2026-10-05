@@ -1,0 +1,32 @@
+13 68c3a96c6c6f2077c3b6726c64 aMOpbGxvIHfDtnJsZA== aMOpbGxvIHfDtnJsZA
+hello hello
+<Buffer 01 02 03> <Buffer 61 62 61 62> abc
+6 true false true
+deadbeef -2 222 8
+7 false héll true
+true -1 {"type":"Buffer","data":[104,105]}
+1 <Buffer 68 00 69 00> <Buffer ff>
+first:1 on:1 once:1 first:2 on:2 2 [ 'x' ]
+unhandled error event: boom
+once(): [ 'a', 'b' ]
+subclass this ok: true
+a=42 {"k":[1]} % x { y: 1 } 3
+{ a: [ 1, { b: [Map] } ] } 'str'
+promisify: 42
+true false true
+inherits: true true
+AssertionError ERR_ASSERTION Expected values to be strictly equal:
+AssertionError ERR_ASSERTION Expected values to be strictly deep-equal:
+AssertionError ERR_ASSERTION The expression evaluated to a falsy value:
+AssertionError ERR_ASSERTION Missing expected exception.
+false function
+ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+a9993e364706816aba3e25717850c26c9cd0d89d 900150983cd24fb0d6963f7d28e17f72
+47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU= 41edece42d63e8d9
+f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8
+16 5 true
+ba7816bf8f01cfea
+true linux number true string LE
+/tmp/a b.txt file:///tmp/a%20b.txt
+timers/promises: slept
+function true function true

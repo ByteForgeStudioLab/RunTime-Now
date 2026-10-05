@@ -1,0 +1,19 @@
+cjs named: 42 cjs-pkg lib a+a-start
+cjs default is module.exports: true
+dual (import): hello ali (esm) esm
+conditions: rtn condition | pattern: [x]
+esm-only: esm-only default 42
+__esModule interop: function default tool 1.2.3
+typescript in node_modules: 5
+#imports: test 42 helper from #lib/helper
+self-reference: self-reference works
+folder/index: index.js of legacy-folder | nested node_modules: outer sees nested inner | top-level inner
+dual (require): hello ali (cjs) cjs
+require(esm): 42 esm-only default
+require.resolve: dual/dist/index.cjs fs
+subpath file: legacy-folder/lib/extra
+import dual/internal/secret: ERR_PACKAGE_PATH_NOT_EXPORTED
+import dual/missing: ERR_PACKAGE_PATH_NOT_EXPORTED
+import no-such-package: ERR_MODULE_NOT_FOUND
+import #nope: ERR_PACKAGE_IMPORT_NOT_DEFINED
+require missing: MODULE_NOT_FOUND Cannot find module 'no-such-package'

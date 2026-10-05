@@ -1,5 +1,6 @@
 // Built-in modules written in JavaScript:
 //   import path from "node:path"            (also "rtn:path", "path")
+//   import fs from "node:fs"                (sync API from src/bindings/fs.cpp + fs.promises)
 //   import fs from "node:fs/promises"       (also "rtn:fs/promises", "fs/promises", fs.promises)
 //
 // They are registered on internal.modules; src/modules.cpp turns each one
@@ -366,5 +367,14 @@
     constants,
   };
 
-  internal.modules = { "path": path, "fs/promises": promises };
+  // The C functions are non-enumerable on native.fsSync; copy them as normal properties.
+  const fsSync = Object.fromEntries(Object.getOwnPropertyNames(native.fsSync).map((k) => [k, native.fsSync[k]]));
+  const fsModule = {
+    ...fsSync,
+    promises,
+    constants: Object.freeze({ ...constants, O_RDONLY: 0, O_WRONLY: 1, O_RDWR: 2 }),
+  };
+
+  internal.path = path;
+  internal.modules = { "path": path, "fs/promises": promises, "fs": fsModule };
 });

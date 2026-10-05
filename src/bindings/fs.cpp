@@ -1,4 +1,4 @@
-// import { readFileSync, writeFileSync, ... } from "rtn:fs"   (also "node:fs", "fs")
+// import { readFileSync, writeFileSync, ... } from "node:fs"   (also "fs", "rtn:fs")
 // File system API modelled on Node's `fs`. Errors carry Node-style
 // `code` / `errno` / `syscall` / `path` properties.
 //
@@ -453,31 +453,15 @@ const JSCFunctionListEntry kFsFuncs[] = {
 };
 constexpr int kFsFuncCount = sizeof(kFsFuncs) / sizeof(kFsFuncs[0]);
 
-int fs_module_init(JSContext* ctx, JSModuleDef* m) {
-    if (JS_SetModuleExportList(ctx, m, kFsFuncs, kFsFuncCount) < 0) return -1;
-    // `import { promises } from "fs"` and fs.promises, like Node.
-    JSValue promises = builtin_module_exports(ctx, "fs/promises");
-    // Also `import fs from "rtn:fs"` (default export with everything on it).
-    JSValue def = JS_NewObject(ctx);
-    JS_SetPropertyFunctionList(ctx, def, kFsFuncs, kFsFuncCount);
-    JS_SetPropertyStr(ctx, def, "promises", JS_DupValue(ctx, promises));
-    if (JS_SetModuleExport(ctx, m, "promises", promises) < 0) return -1;
-    return JS_SetModuleExport(ctx, m, "default", def);
-}
-
 }  // namespace
 
-JSModuleDef* create_fs_module(JSContext* ctx, const char* name) {
-    JSModuleDef* m = JS_NewCModule(ctx, name, fs_module_init);
-    if (!m) return nullptr;
-    JS_AddModuleExportList(ctx, m, kFsFuncs, kFsFuncCount);
-    JS_AddModuleExport(ctx, m, "promises");
-    JS_AddModuleExport(ctx, m, "default");
-    return m;
-}
-
+// native.fsAsync for fs/promises, native.fsSync = { readFileSync, ... } for the "fs" module
+// (src/js/modules.js builds the module object from it).
 void add_fs_natives(JSContext* ctx, JSValueConst native) {
     JS_SetPropertyStr(ctx, native, "fsAsync", JS_NewCFunction(ctx, js_fs_async, "fsAsync", 5));
+    JSValue sync = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, sync, kFsFuncs, kFsFuncCount);
+    JS_SetPropertyStr(ctx, native, "fsSync", sync);
 }
 
 }  // namespace rtn
