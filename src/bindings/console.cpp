@@ -146,7 +146,11 @@ public:
             auto [it, added] = circular_ids_.try_emplace(ptr, static_cast<int>(circular_ids_.size()) + 1);
             return st_.special("[Circular *" + std::to_string(it->second) + "]");
         }
-        if (depth > kMaxDepth) return st_.special(JS_IsArray(v) ? "[Array]" : "[Object]");
+        if (depth > kMaxDepth) {  // like Node: [Array], [Object], [Map], [MyClass]
+            if (JS_IsArray(v)) return st_.special("[Array]");
+            std::string name = constructor_name(ctx_, v);
+            return st_.special("[" + (name.empty() || name.starts_with("[") ? std::string("Object") : name) + "]");
+        }
 
         seen_.insert(ptr);
         std::string out = format_custom(v, depth, indent);
@@ -262,7 +266,7 @@ private:
         }
     }
 
-    // Uses obj[Symbol.for("rtn.inspect")]() if present. Returns "" if not.
+    // Uses obj[Symbol.for("rtn.inspect")]() if present (a string is printed as is). Returns "" if not.
     std::string format_custom(JSValueConst v, int depth, int indent) {
         if (g_inspect_atom == JS_ATOM_NULL) return "";
         JSValue fn = JS_GetProperty(ctx_, v, g_inspect_atom);
@@ -275,6 +279,11 @@ private:
         if (JS_IsException(shown)) {
             JS_FreeValue(ctx_, JS_GetException(ctx_));
             return "";
+        }
+        if (JS_IsString(shown)) {  // a ready-made representation, e.g. "<Buffer 68 69>"
+            std::string raw = to_string(ctx_, shown);
+            JS_FreeValue(ctx_, shown);
+            return raw;
         }
         std::string name = constructor_name(ctx_, v);
         std::string body = JS_IsObject(shown) ? format_object(shown, depth, indent) : format(shown, depth + 1, indent);
@@ -672,6 +681,28 @@ const JSCFunctionListEntry kConsoleFuncs[] = {
 
 std::string inspect(JSContext* ctx, JSValueConst v, bool colors) {
     return Inspector(ctx, colors).format(v, 0, 0);
+}
+
+namespace {
+
+// inspect(value, colors) -> what console.log would show for one value (strings quoted)
+JSValue js_inspect(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    bool colors = argc > 1 && JS_ToBool(ctx, argv[1]) > 0;
+    std::string s = inspect(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, colors);
+    return JS_NewStringLen(ctx, s.data(), s.size());
+}
+
+// format(...args) -> the line console.log(...args) prints (util.format)
+JSValue js_format(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    std::string s = format_args(ctx, argc, argv, false);
+    return JS_NewStringLen(ctx, s.data(), s.size());
+}
+
+}  // namespace
+
+void add_console_natives(JSContext* ctx, JSValueConst native) {
+    JS_SetPropertyStr(ctx, native, "inspect", JS_NewCFunction(ctx, js_inspect, "inspect", 2));
+    JS_SetPropertyStr(ctx, native, "format", JS_NewCFunction(ctx, js_format, "format", 1));
 }
 
 void install_console(JSContext* ctx) {

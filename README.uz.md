@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="assets/rtn-1.6.2.png" alt="RunTime-Now 1.6.2" width="760">
+<img src="assets/rtn-2.0.0.png" alt="RunTime-Now 2.0.0" width="760">
 
 # ⚡ RunTime-Now
 
 **C++ da yozilgan kichik va tez JavaScript va TypeScript runtime**
 
-`.js` va `.ts` fayllarni ishga tushiring, Web standartidagi `Request` / `Response` bilan HTTP server yozing.
-Hammasi bitta **~3 MB** li dasturda: **~7 ms** da ishga tushadi, HTTP server esa **~6 MB xotira** ishlatadi.
+`.js` va `.ts` fayllarni ishga tushiring, Web standartidagi `fetch` / `Request` / `Response` bilan HTTP server va mijoz yozing,
+npm paketlaridan foydalaning va testlar yozing. Hammasi bitta **~3 MB** li dasturda, **~6 ms** da ishga tushadi.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -54,6 +54,9 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
   - [Taymerlar va microtask'lar](#taymerlar-va-microtasklar)
   - [process](#process)
   - [Modullar](#modullar)
+  - [npm paketlari va CommonJS](#npm-paketlari-va-commonjs)
+  - [Node'ning o'rnatilgan modullari](#nodening-ornatilgan-modullari)
+  - [Kodingizni testlash: `rtn test`](#kodingizni-testlash-rtn-test)
   - [Fayl tizimi: `rtn:fs`](#fayl-tizimi-rtnfs)
   - [HTTP server: `rtn.serve()`](#http-server-rtnserve)
   - [Web API'lar](#web-apilar)
@@ -73,12 +76,12 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 ## Nega RunTime-Now?
 
 Node.js, Deno va Bun katta va murakkab loyihalar. RunTime-Now (`rtn`) esa **bir kunda o'qib chiqsa
-bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy ishlarni bajaradi:
+bo'ladigan** runtime (taxminan 12 000 qator C++ va JavaScript), lekin u haqiqiy ishlarni bajaradi:
 
 - 🧩 **Runtime qanday ishlashini o'rganing.** Event loop, modul yuklovchi, HTTP parser va TypeScript
   stripper qisqa, izohlangan va testlangan.
 - 🪶 **Juda yengil.** Bitta ~3 MB li dastur, hech qanday bog'liqliksiz (to'liq statik),
-  ~10 ms da ishga tushadi, HTTP server ~3 MB xotira ishlatadi.
+  ~6 ms da ishga tushadi, HTTP server ~3 MB xotira ishlatadi.
 - 🟦 **TypeScript darhol ishlaydi.** `tsc` ham, bundler ham, sozlama fayli ham kerak emas. O'rnatilgan
   stripper qator va ustun raqamlarini saqlaydi, shuning uchun xato qaysi qatorda bo'lsa, stack trace ham aynan o'sha `.ts` qatorni ko'rsatadi.
 - 🌐 **Web standartidagi API'lar.** `Request` / `Response` / `Headers` / `URL`: kod Deno va Bun'dagi bilan bir xil shaklda yoziladi.
@@ -89,13 +92,15 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 |---|---|
 | **Til** | [QuickJS-ng](https://github.com/quickjs-ng/quickjs) orqali ES2024+: `#private` maydonli klasslar, `async`/`await`, **top-level `await`**, BigInt, Proxy, `toSorted`, `Object.groupBy`, `Promise.withResolvers` va boshqalar |
 | **TypeScript** | `.ts` / `.mts` to'g'ridan-to'g'ri ishlaydi: turlar, interfeyslar, generiklar, `enum`, `const enum`, parametr xususiyatlari, overload'lar, `abstract`, `declare`, `satisfies`, `as const`, importlarni olib tashlash (elision) |
+| **npm va CommonJS** | `node_modules` dagi paketlar (`exports`, `imports`, `main`, shartlar), `require()`, `module.exports`, ESM ⇄ CommonJS. lodash, zod, dayjs, chalk, date-fns, uuid, yaml, semver va boshqalar bilan sinalgan |
 | **Modullar** | ES modullar, kengaytmani avtomatik topish, JSON import, `import "./x.js"` → `x.ts`, dinamik `import()`, `import.meta` |
 | **Event loop** | Microtask → `process.nextTick` → taymerlar → **epoll** I/O, tartib Node bilan bir xil |
 | **HTTP server** | `rtn.serve()`: HTTP/1.1, keep-alive, pipelining, chunked body, `Expect: 100-continue`, bo'sh turish va so'rov timeout'lari, hajm limitlari |
 | **HTTP mijoz** | **`fetch()`**: redirect'lar, `AbortSignal` timeout'lari, `data:` manzillar, Node uslubidagi xatolar |
 | **Web API** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
-| **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write` …), `node:fs`, **`node:fs/promises`** (bloklamaydi), **`node:path`** |
-| **Qulayliklar** | Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
+| **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (bloklamaydi), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hash, HMAC), `module`, `timers`, `tty` |
+| **Testlash** | `rtn test`: Jest/Bun API'li o'rnatilgan test runner (`describe`, `test`, `expect`, mock'lar, hook'lar) |
+| **Qulayliklar** | Yangi TypeScript loyiha uchun `rtn init`, Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
 
 ## O'rnatish
 
@@ -183,9 +188,11 @@ cmake --build build
 
 | Buyruq | Tavsif |
 |---|---|
-| `rtn <fayl> [argumentlar...]` | `.js`, `.mjs`, `.ts` yoki `.mts` faylni ishga tushirish (argumentlar `process.argv` ga keladi) |
+| `rtn <fayl> [argumentlar...]` | `.js`, `.mjs`, `.cjs`, `.ts`, `.mts` yoki `.cts` faylni ishga tushirish (argumentlar `process.argv` ga keladi) |
 | `rtn run <fayl> [argumentlar...]` | Yuqoridagi bilan bir xil |
 | `rtn -e "<kod>" [argumentlar...]` | Kodni ES modul sifatida bajarish |
+| `rtn test [yo'llar] [-t nom]` | `*.test.*`, `*_test.*`, `*.spec.*` fayllardagi testlarni ishga tushirish ([rtn test](#kodingizni-testlash-rtn-test)) |
+| `rtn init [papka]` | TypeScript loyiha yaratish: `package.json`, `index.ts`, test, `tsconfig.json` |
 | `rtn strip <fayl.ts>` | TypeScript fayldan qanday JavaScript chiqishini ko'rsatish |
 | `rtn upgrade` / `rtn update -r` | Eng so'nggi release'ga yangilash (`--check`, `--version x.y.z`, `--force`) |
 | `rtn` | REPL (terminalda) yoki stdin'ga yuborilgan skriptni bajarish |
@@ -199,7 +206,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.6.2 (QuickJS-ng 0.17.0)
+RunTime-Now v2.0.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const natija = await new Promise((r) => setTimeout(() => r("tayyor"), 100))
 > natija
@@ -359,8 +366,8 @@ import { yordamchi } from "./utils.ts";   // nisbiy import
 import { yordamchi } from "./utils";      // .js .mjs .ts .mts .json, keyin index.js / index.ts sinab ko'riladi
 import { yordamchi } from "./utils.js";   // utils.ts ga ham tushadi (TypeScript ESM uslubi)
 import malumot from "./data.json";        // JSON (default export)
-import fs from "rtn:fs";                  // o'rnatilgan modul ("node:fs", "fs" ham bo'ladi)
-import path from "node:path";             // node:path, node:fs/promises
+import fs from "node:fs";                 // o'rnatilgan modul ("fs", "rtn:fs" ham bo'ladi)
+import _ from "lodash";                   // node_modules dagi npm paket
 const mod = await import("./lazy.js");    // dinamik import
 
 import.meta.url;        // "file:///toliq/yol/fayl.ts"
@@ -369,7 +376,98 @@ import.meta.dirname;    // "/toliq/yol"
 import.meta.main;       // kirish moduli uchun true
 ```
 
-npm paketlari (`import express from "express"`) **hozircha ishlamaydi**: [yo'l xaritasi](#cheklovlar-va-yol-xaritasi)ga qarang.
+### npm paketlari va CommonJS
+
+Paketlarni istalgan paket menejeri bilan o'rnating (`npm install`, `pnpm`, `bun install`, …) va ishlating:
+
+```ts
+import { z } from "zod";                          // ES modul paket
+import _ from "lodash";                           // CommonJS paket: module.exports — default export
+import { chunk } from "lodash";                   // ...uning xossalari esa nomli export'lar
+const dayjs = require("dayjs");                   // .cjs faylda (yoki istalgan CommonJS faylda)
+```
+
+| | Qanday ishlaydi |
+|---|---|
+| Topish | Papkalar bo'ylab yuqoriga `node_modules`, `package.json` dagi `"exports"` (subpath'lar, `*` pattern'lar, shartlar `rtn` → `node` → `import`/`require` → `default`), `"imports"` (`#ichki`), `"main"`, index fayllar, `NODE_PATH` |
+| CommonJS | `require()`, `module.exports`, `exports`, `__filename`, `__dirname`, `require.resolve`, `require.cache`, `require.main`, `createRequire(import.meta.url)` |
+| Qaysi fayllar CommonJS? | `.cjs`; eng yaqin `package.json` da `"type": "commonjs"` bo'lsa `.js`/`.ts`; `"type"` bo'lmasa, `import`/`export` yo'q, lekin `require`/`module.exports` bor fayllar (Node 22 kabi) |
+| O'zaro ishlash | CommonJS faylni `import` qilsangiz `module.exports` default export, xossalari nomli export bo'ladi; top-level `await` ishlatmaydigan ES modulni `require()` qilsa bo'ladi |
+| TypeScript | `.ts`, `.mts`, `.cts` hamma joyda ishlaydi, `node_modules` ichida ham |
+
+Hozircha yo'q: native addon'lar (`.node`), `node:child_process`, `node:stream`, `node:http` (o'rniga `rtn.serve()` va `fetch()`).
+
+### Node'ning o'rnatilgan modullari
+
+Har bir modul `node:x` va `x` ko'rinishida ishlaydi; `import fs from "fs"` va `require("fs")` bir xil obyektni beradi.
+
+| Modul | Nimalar bor |
+|---|---|
+| `fs`, `fs/promises` | Sinxron API (`readFileSync`, `writeFileSync`, `statSync`, `mkdirSync`, `rmSync`, …) va promise'lar (thread pool'da bajariladi) |
+| `path` | Node'ning POSIX algoritmlari (natija Node bilan solishtirilgan) |
+| `events` | `EventEmitter` (`on`, `once`, `off`, `emit`, `prependListener`, …), `once()`, `on()` |
+| `buffer` | `Buffer` (global ham): utf8, hex, base64, base64url, latin1, ascii, utf16le; `read/writeUInt32LE` va boshqalar |
+| `util` | `format`, `inspect`, `promisify`, `callbackify`, `inherits`, `deprecate`, `isDeepStrictEqual`, `types`, `styleText` |
+| `assert`, `assert/strict` | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match`, … |
+| `crypto` | `createHash` / `createHmac` (sha256, sha1, md5), `randomBytes`, `randomInt`, `randomUUID`, `timingSafeEqual`; global `crypto.subtle.digest` |
+| `os`, `url`, `module`, `timers`, `timers/promises`, `process`, `tty` | Ko'p ishlatiladigan funksiyalar (`os.cpus()`, `fileURLToPath`, `createRequire`, promise'li `setTimeout`, …) |
+
+`process` — `EventEmitter` (`process.on("exit")`); `global`, `setImmediate`, `process.emitWarning` ham bor.
+**Diqqat (2.0):** `process.version` endi rtn moslashgan Node versiyasini qaytaradi (`v22.12.0`), shunda paketlar
+Node uchun yozilgan kod yo'lini tanlaydi; rtn'ning o'z versiyasi `process.versions.rtn` / `rtn.version` da.
+
+### Kodingizni testlash: `rtn test`
+
+```ts
+// math.test.ts
+import { describe, test, expect, mock } from "rtn:test";
+
+describe("add", () => {
+  test("sonlarni qo'shadi", () => {
+    expect(1 + 2).toBe(3);
+    expect({ a: [1, 2] }).toEqual({ a: [1, 2] });
+  });
+
+  test("async kod bilan ishlaydi", async () => {
+    await expect(Promise.resolve(42)).resolves.toBe(42);
+  });
+
+  test.each([[1, 1, 2], [2, 3, 5]])("%i + %i = %i", (a, b, sum) => {
+    expect(a + b).toBe(sum);
+  });
+});
+
+test("mock'lar", () => {
+  const fn = mock((x: number) => x * 2);
+  fn(21);
+  expect(fn).toHaveBeenCalledWith(21);
+});
+```
+
+```text
+$ rtn test
+
+● rtn test v2.0.0
+
+math.test.ts:
+  ✓ add › sonlarni qo'shadi [0.09ms]
+  ✓ add › async kod bilan ishlaydi [0.12ms]
+  ✓ add › 1 + 1 = 2 [0.05ms]
+  ✓ add › 2 + 3 = 5 [0.04ms]
+  ✓ mock'lar [0.10ms]
+
+ 5 pass
+ Ran 5 tests across 1 file. [3.1ms]
+```
+
+| | |
+|---|---|
+| Fayllar | `*.test.*`, `*_test.*`, `*.spec.*` (`.js .ts .mjs .mts .cjs .cts`), `node_modules` o'tkazib yuboriladi; `rtn test src/` yoki `rtn test math` bilan toraytirish, `-t <regex>` bilan test nomi bo'yicha filtrlash |
+| Tuzilma | `test` / `it`, `describe`, `.skip`, `.only`, `.todo`, `.each`, `.if`, `beforeAll`, `afterAll`, `beforeEach`, `afterEach`, `done` callback'lar, timeout'lar (`--timeout`, har bir test uchun, `setDefaultTimeout`) |
+| `expect` | `toBe`, `toEqual`, `toStrictEqual`, `toMatchObject`, `toContain`, `toHaveLength`, `toHaveProperty`, `toMatch`, `toThrow`, `toBeCloseTo`, `toBeInstanceOf`, taqqoslashlar, `toHaveBeenCalled*`, `.not`, `.resolves`, `.rejects`, `expect.any()` va boshqalar |
+| Mock'lar | `mock(fn)` / `fn()` (`mockReturnValue`, `mockResolvedValue`, `mockImplementation`, …), `spyOn(obyekt, metod)` |
+
+Test yiqilsa chiqish kodi `1` bo'ladi, shuning uchun CI'ga mos.
 
 ### Fayl tizimi: `rtn:fs`
 
@@ -555,19 +653,24 @@ src/
 ├── upgrade.cpp           rtn upgrade: yuklash, SHA-256 tekshiruvi, atomik almashtirish
 ├── term.cpp/.hpp         rtn upgrade uchun terminal UI: ranglar, spinner, progress bar
 ├── modules.cpp/.hpp      Modullarni topish va yuklash
-├── builtins.cpp          Ichki JS'ni ishga tushishda bajaradi
+├── builtins.cpp          Ichki JS'ni (build paytida bytecode'ga kompilyatsiya qilingan) ishga tushishda bajaradi
 ├── util.cpp/.hpp         Yordamchi funksiyalar, Node uslubidagi xatolar
 ├── typescript/strip.cpp  TypeScript → JavaScript (tokenizer + turlarni o'chiruvchi)
 ├── js/events.js          EventTarget, Event, AbortController, AbortSignal
 ├── js/web.js             URL, URLSearchParams, Headers, Request, Response, TextEncoder/Decoder
 ├── js/fetch.js           fetch()
 ├── js/crypto.js          crypto, structuredClone
-├── js/modules.js         node:path, node:fs/promises
+├── js/modules.js         node:fs, node:path, node:fs/promises
+├── js/buffer.js          Buffer
+├── js/node.js            node:events, util, os, assert, url, crypto, timers, process
+├── js/cjs.js             npm paketlarini topish, CommonJS require()
+├── js/test.js, init.js   rtn test, rtn init
 ├── js/http.js            rtn.serve()
 └── bindings/             console, timers, process, fs, encoding, http, fetch, crypto
 tests/                    Test to'plami (run.sh, cases/, strip/, http_test.py, fetch_test.py, upgrade_test.sh)
 install.sh                Bir qatorli o'rnatuvchi (curl … | bash)
 .github/workflows/        CI (har bir push) va release (main'da versiya o'zgarganda yoki v* teg)
+tools/embed_js.cpp        Build bosqichi: src/js/*.js ni QuickJS bytecode'ga kompilyatsiya qiladi
 tools/loadgen.cpp         Benchmark uchun HTTP/1.1 yuk generatori
 third_party/quickjs/      QuickJS-ng (git submodule)
 ```
@@ -606,9 +709,11 @@ tests/run.sh --update  # ataylab o'zgartirishdan keyin kutilgan natijalarni qayt
 
 | To'plam | Nimani tekshiradi |
 |---|---|
-| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 20 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
+| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 21 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto va `node-compat.mjs` (Buffer, events, util, assert, crypto, …) — natijasi **Node 22 bilan aynan bir xil**. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
 | `tests/strip/` | TypeScript → JavaScript natijasi belgima-belgi, qatorlar soni saqlanishi |
 | `tests/http_test.py` | Xom socket orqali 27 ta HTTP tekshiruvi: pipelining, chunked body, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 ta parallel so'rov, `stop()` |
+| `tests/fixtures/project` | npm paketlarini topish va CommonJS: `exports` shartlari va pattern'lari, `imports`, scoped paketlar, ichma-ich `node_modules`, `require` sikllari, `__esModule`, `require(esm)` |
+| `tests/fixtures/testrunner` | `rtn test` chiqishi (o'tgan, yiqilgan, o'tkazilgan, todo, timeout, buzilgan fayl) va `rtn init` |
 | `tests/fetch_test.py` | Xom socket server orqali 16 ta `fetch()` tekshiruvi: chunked, ulanish yopilguncha keladigan, 1xx, uzilgan, juda katta va buzilgan javoblar |
 | `tests/upgrade_test.sh` | Soxta release server orqali `install.sh` va `rtn upgrade`: aniq va so'nggi versiya, PATH sozlash, buzilgan checksum, atomik yangilash, animatsiyali terminal rejimi |
 | CLI + REPL | Argumentlar, stdin skriptlari, `await` bilan REPL sessiyasi |
@@ -623,10 +728,12 @@ RunTime-Now hali yosh loyiha. Hozircha yo'q narsalar (taxminiy muhimlik tartibid
 
 - [x] `fetch()` (HTTP mijoz) — `https:` pastdagi TLS'ni kutadi
 - [x] `node:path`, asinxron `fs` (`fs/promises`)
-- [ ] npm paketlari: `node_modules` va bare specifier'larni topish
-- [ ] CommonJS `require()`
+- [x] npm paketlari: `node_modules`, `exports` / `imports`, bare specifier'lar
+- [x] CommonJS `require()` va ESM ⇄ CommonJS
+- [x] Test runner (`rtn test`)
 - [x] `crypto.randomUUID()` / `getRandomValues()`, `structuredClone`, `AbortController`, `EventTarget`
-- [ ] `crypto.subtle`, `Buffer`
+- [x] `Buffer`, `crypto.subtle.digest`, `node:events` / `util` / `os` / `assert`
+- [ ] `node:stream`, `node:child_process`, `node:http`, `crypto.subtle` ning qolgan qismi
 - [ ] Stream body'lar (`ReadableStream`), `FormData`, `Blob`
 - [ ] WebSocket, HTTPS/TLS
 - [ ] `Intl` (tilga moslangan formatlash)

@@ -1,0 +1,1 @@
+{ "name": "fixture-app", "type": "module", "imports": { "#config": "./config.cjs", "#lib/*": "./lib/*.js" }, "exports": { ".": "./app.mjs", "./self": "./self.js" } }

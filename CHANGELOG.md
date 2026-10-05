@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.0 — 2026-10-05
+
+The biggest release so far: rtn now runs npm packages, CommonJS code and your tests.
+
+- **npm packages**: imports and `require()` resolve through `node_modules` with `package.json` `"exports"` (subpaths, `*` patterns, conditions), `"imports"` (`#internal`), `"main"`, scoped packages and nested `node_modules`. Checked with lodash, zod, dayjs, chalk 5, date-fns, uuid, nanoid, yaml, semver, picocolors, ms, kleur, mitt and eventemitter3.
+- **CommonJS**: `require()`, `module.exports`, `__dirname` / `__filename`, `require.resolve` / `cache` / `main`, `createRequire()`, `.cjs` / `.cts` files and CommonJS entry points. ES modules import CommonJS (`module.exports` = default export, its properties = named exports), and `require()` loads ES modules without top-level `await`.
+- **Node built-in modules**: `Buffer` / `node:buffer`, `node:events` (EventEmitter), `node:util`, `node:assert` (+ `assert/strict`), `node:os`, `node:url`, `node:crypto` (`createHash`/`createHmac` with sha256, sha1, md5, `randomBytes`, `randomInt`, …), `node:timers` (+ `timers/promises`), `node:module`, `node:tty`, `node:process`; `crypto.subtle.digest`. All built-ins work with or without `node:`. `tests/cases/node-compat.mjs` prints exactly what Node 22 prints.
+- **`rtn test`**: a built-in test runner with the Jest/Bun API — `describe` / `test` / `it`, `.skip` / `.only` / `.todo` / `.each`, hooks, async and `done` tests, timeouts, 30+ `expect` matchers, `.resolves` / `.rejects`, asymmetric matchers, `mock()` and `spyOn()`. Calm black/white/blue output, exit code 1 on failure.
+- **`rtn init`**: creates a TypeScript project that runs and tests out of the box.
+- **Faster startup**: the built-in JavaScript is compiled to QuickJS bytecode at build time — `rtn -e 0` takes ~6 ms (1.6: ~10 ms) even though rtn has ~4,000 more lines of built-in JS.
+- `process` is an `EventEmitter` (`process.on("exit")`), plus `process.emitWarning`, `global`, `setImmediate` / `clearImmediate`.
+- `console.log` shows deep objects like Node (`[Map]`, `[MyClass]` instead of `[Object]`).
+
+**Breaking changes**
+
+- `process.version` now reports the Node version whose APIs rtn follows (`v22.12.0`) and `process.versions.node` exists, so npm packages take their Node code paths. rtn's own version: `process.versions.rtn` or `rtn.version`.
+- A `.js` / `.ts` file that uses `require()` / `module.exports` and no `import` / `export` now runs as CommonJS (previously always an ES module).
+- Bare specifiers (`import x from "pkg"`) now resolve npm packages instead of throwing; `fs`, `path`, `events`… without `node:` are the built-in modules.
+
 ## 1.6.2 — 2026-10-05
 
 - **A calmer download screen** for `rtn upgrade` / `rtn update` and the installer: the terminal's own black/white text with a single blue accent, instead of the multi-color gradient. Works on dark and light terminals alike.

@@ -3,4 +3,4 @@ function true function
 true true true
 dynamic import: Salom, lazy!
 missing module: Cannot find module './does-not-exist.js'
-Cannot resolve 'some-npm-package': npm packages (bare specifiers) are not supported yet
+Cannot find package 'some-npm-package' imported from <root>/tests/cases/modules.ts

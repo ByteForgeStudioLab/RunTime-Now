@@ -3,6 +3,8 @@
 //   rtn <file.js|file.ts> [args...]   run a file
 //   rtn run <file>                     same thing
 //   rtn -e "<code>" [args...]          run code from the command line
+//   rtn test [paths] [-t pattern]      run tests written with rtn:test
+//   rtn init [dir]                     create a new TypeScript project
 //   rtn strip <file.ts>                print the JavaScript produced from a .ts file
 //   rtn upgrade [-r] [--check]         update rtn to the latest release (alias: update)
 //   rtn                                REPL (or run stdin as a script when it's piped)
@@ -31,6 +33,8 @@ void print_usage() {
         "  rtn <file> [args...]        Run a .js / .mjs / .ts / .mts file\n"
         "  rtn run <file> [args...]    Same as above\n"
         "  rtn -e \"<code>\" [args...]   Evaluate code\n"
+        "  rtn test [paths] [-t name]  Run tests (*.test.ts, *.spec.js, ...) with rtn:test\n"
+        "  rtn init [dir]              Create a new TypeScript project\n"
         "  rtn strip <file.ts>         Print the JavaScript made from a TypeScript file\n"
         "  rtn upgrade                 Upgrade rtn to the latest release (alias: rtn update -r)\n"
         "  rtn                         Start the REPL (runs stdin as a script if it's piped)\n"
@@ -41,8 +45,10 @@ void print_usage() {
         "  -h, --help                  Show this help\n"
         "  -v, --version               Show version\n"
         "\n"
-        "Built-in modules:\n"
-        "  node:fs, node:fs/promises, node:path   (also rtn:..., or without a prefix)\n"
+        "Built-in modules (the node: prefix is optional):\n"
+        "  node:fs, fs/promises, path, events, util, os, assert, buffer, url, crypto,\n"
+        "  module, process, timers, tty   ·   rtn:test (test, describe, expect, mock)\n"
+        "  npm packages from node_modules work with import and require().\n"
         "\n"
         "Globals:\n"
         "  fetch, Request, Response, Headers, URL, AbortController, EventTarget,\n"
@@ -104,6 +110,12 @@ int main(int argc, char** argv) {
         auto args = make_argv(self, argv + 3, argv + argc);  // process.argv = [rtn, ...rest]
         rtn::Runtime runtime(static_cast<int>(args.size()), args.data());
         return runtime.run_code(argv[2]);
+    }
+    if (cmd == "test" || cmd == "init") {
+        std::vector<std::string> rest(argv + 2, argv + argc);
+        auto args = make_argv(self, argv + 2, argv + argc);
+        rtn::Runtime runtime(static_cast<int>(args.size()), args.data());
+        return runtime.run_internal(cmd == "test" ? "runTests" : "initProject", rest);
     }
     if (cmd == "strip") {
         if (argc < 3) {

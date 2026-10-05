@@ -13,6 +13,9 @@ void install_module_loader(JSRuntime* rt);
 // (e.g. wraps .json files). On failure throws a JS error and returns false.
 bool load_source(JSContext* ctx, const std::string& path, std::string& out);
 
+// True if `path` is a CommonJS file (.cjs, package.json "type": "commonjs", or require() syntax).
+bool is_commonjs_file(JSContext* ctx, const std::string& path);
+
 // Fills import.meta (url, filename, dirname, main) for a compiled module.
 void set_import_meta(JSContext* ctx, JSValueConst module_fn, const std::string& path, bool is_main);
 

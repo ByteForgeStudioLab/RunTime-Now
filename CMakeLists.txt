@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(RunTimeNow VERSION 1.6.2 LANGUAGES C CXX)
+project(RunTimeNow VERSION 2.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,16 +26,22 @@ set(RTN_JS_FILES
     ${CMAKE_SOURCE_DIR}/src/js/fetch.js
     ${CMAKE_SOURCE_DIR}/src/js/crypto.js
     ${CMAKE_SOURCE_DIR}/src/js/modules.js
+    ${CMAKE_SOURCE_DIR}/src/js/buffer.js
+    ${CMAKE_SOURCE_DIR}/src/js/node.js
+    ${CMAKE_SOURCE_DIR}/src/js/cjs.js
+    ${CMAKE_SOURCE_DIR}/src/js/test.js
+    ${CMAKE_SOURCE_DIR}/src/js/init.js
     ${CMAKE_SOURCE_DIR}/src/js/navigator.js
     ${CMAKE_SOURCE_DIR}/src/js/http.js
 )
-string(REPLACE ";" "|" RTN_JS_ARG "${RTN_JS_FILES}")
+# Compiled to QuickJS bytecode at build time, so startup doesn't parse them.
+add_executable(embed_js tools/embed_js.cpp)
+target_link_libraries(embed_js PRIVATE qjs)
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/embedded_js.cpp
-    COMMAND ${CMAKE_COMMAND} -DOUT=${CMAKE_BINARY_DIR}/embedded_js.cpp "-DINPUTS=${RTN_JS_ARG}"
-            -P ${CMAKE_SOURCE_DIR}/cmake/embed_js.cmake
-    DEPENDS ${RTN_JS_FILES} ${CMAKE_SOURCE_DIR}/cmake/embed_js.cmake
-    COMMENT "Embedding src/js/*.js"
+    COMMAND embed_js ${CMAKE_BINARY_DIR}/embedded_js.cpp ${RTN_JS_FILES}
+    DEPENDS embed_js ${RTN_JS_FILES}
+    COMMENT "Compiling src/js/*.js to bytecode"
     VERBATIM
 )
 
@@ -57,6 +63,7 @@ add_executable(rtn
     src/bindings/http.cpp
     src/bindings/fetch.cpp
     src/bindings/crypto.cpp
+    src/bindings/os.cpp
     src/builtins.cpp
     ${CMAKE_BINARY_DIR}/embedded_js.cpp
 )

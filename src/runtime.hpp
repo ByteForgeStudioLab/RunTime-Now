@@ -47,6 +47,9 @@ public:
     int run_stdin();
     // Interactive read-eval-print loop (src/repl.cpp).
     int repl();
+    // Runs internal[fn](args) (e.g. "runTests" for `rtn test`) and the event loop;
+    // the exit code is the number the returned promise resolves to.
+    int run_internal(const char* fn, const std::vector<std::string>& args);
 
     static Runtime* from(JSContext* ctx) {
         return static_cast<Runtime*>(JS_GetContextOpaque(ctx));
