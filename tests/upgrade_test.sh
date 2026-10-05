@@ -75,6 +75,14 @@ check "rtn update -r upgrades to the latest release" '[ $code -eq 0 ] && [ "$("$
 cp "$RTN" "$BIN"   # back to the real binary
 out=$("$BIN" upgrade --version "$CURRENT" 2>&1)
 check "same version -> nothing to do" '[[ "$out" == *"already on version"* ]]' "$out"
+if script -qec true /dev/null > /dev/null 2>&1; then  # util-linux `script`: run inside a pseudo-terminal
+  out=$(env -u CI -u NO_COLOR TERM=xterm-256color script -qec "'$BIN' upgrade --version 9.9.9" /dev/null 2>&1); code=$?
+  check "animated upgrade in a terminal (progress bar, steps, cursor restored)" \
+    '[ $code -eq 0 ] && [[ "$out" == *"Downloading"*"Downloaded"*"Verified"*"is ready"* ]] && [[ "$out" == *$'"'"'\e[?25h'"'"'* ]] && [ "$("$BIN" --version | awk "{print \$2}")" = 9.9.9 ]' "$out"
+  cp "$RTN" "$BIN"
+  out=$(env -u CI TERM=xterm-256color script -qec "'$BIN' upgrade --version 7.7.7" /dev/null 2>&1); code=$?
+  check "animated upgrade: failed download is reported" '[ $code -ne 0 ] && [[ "$out" == *"download failed"* ]]' "$out"
+fi
 out=$("$ROOT/build/rtn" upgrade --version 9.9.9 2>&1); code=$?
 check "refuses to overwrite a source build" '[ $code -ne 0 ] && [[ "$out" == *"built from source"* ]]' "$out"
 

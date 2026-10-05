@@ -40,6 +40,7 @@ add_executable(rtn
     src/runtime.cpp
     src/repl.cpp
     src/upgrade.cpp
+    src/term.cpp
     src/modules.cpp
     src/util.cpp
     src/typescript/strip.cpp
