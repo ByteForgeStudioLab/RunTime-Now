@@ -152,6 +152,39 @@ int Runtime::run_code(const std::string& code) {
     return eval_module(code, (fs::current_path() / "[eval]").string());
 }
 
+int Runtime::run_internal(const char* fn, const std::vector<std::string>& args) {
+    JSValue arr = JS_NewArray(ctx_);
+    for (uint32_t i = 0; i < args.size(); ++i) JS_SetPropertyUint32(ctx_, arr, i, JS_NewString(ctx_, args[i].c_str()));
+    JSValue promise = call_internal(ctx_, fn, 1, &arr);
+    JS_FreeValue(ctx_, arr);
+    if (JS_IsException(promise)) {
+        dump_pending_exception(ctx_);
+        return 1;
+    }
+    int code = 1;
+    if (drain_microtasks() && run_event_loop()) {
+        switch (JS_PromiseState(ctx_, promise)) {
+            case JS_PROMISE_FULFILLED: {
+                JSValue r = JS_PromiseResult(ctx_, promise);
+                JS_ToInt32(ctx_, &code, r);
+                JS_FreeValue(ctx_, r);
+                break;
+            }
+            case JS_PROMISE_REJECTED: {
+                JSValue reason = JS_PromiseResult(ctx_, promise);
+                print_exception(ctx_, reason);
+                JS_FreeValue(ctx_, reason);
+                break;
+            }
+            default:
+                std::fprintf(stderr, "error: %s never finished (a pending promise that nothing resolves?)\n", fn);
+                code = 13;
+        }
+    }
+    JS_FreeValue(ctx_, promise);
+    return code;
+}
+
 int Runtime::eval_module(const std::string& code, const std::string& filename) {
     JSValue fn = JS_Eval(ctx_, code.c_str(), code.size(), filename.c_str(),
                          JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);

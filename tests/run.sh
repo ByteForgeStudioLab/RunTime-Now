@@ -55,6 +55,20 @@ for f in app.mjs main.cjs; do
   expect "project/$f" "$f.out" "$out"
 done
 
+echo "rtn test / init:"
+cd "$ROOT/tests/fixtures/testrunner"
+raw=$("$RTN" test 2>&1 < /dev/null)
+code=$?
+out=$(printf "%s\n" "$raw" | normalize | sed -E 's/\[[0-9.]+m?s\]/[time]/g; s/rtn test v[0-9.]+/rtn test vX/')
+if [ "$code" != 1 ]; then fail "rtn test" "exit code $code, expected 1"; else expect "rtn test" "expected.out" "$out"; fi
+INIT_DIR="$(mktemp -d)"
+if "$RTN" init "$INIT_DIR/app" > /dev/null 2>&1 && (cd "$INIT_DIR/app" && "$RTN" index.ts | grep -q "Hello, world!" && "$RTN" test > /dev/null 2>&1); then
+  ok "rtn init creates a project that runs and passes its tests"
+else
+  fail "rtn init creates a project that runs and passes its tests"
+fi
+rm -rf "$INIT_DIR"
+
 echo "strip:"
 cd "$ROOT/tests/strip"
 TMP="$(mktemp)"

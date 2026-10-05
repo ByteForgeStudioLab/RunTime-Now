@@ -1,4 +1,4 @@
-// Runs the JavaScript parts of the runtime (src/js/*.js, embedded at build time).
+// Runs the JavaScript parts of the runtime (src/js/*.js, compiled to bytecode at build time).
 //
 // Each file is `(function (native, internal) { ... })`:
 //   native   — C++ functions (sockets, UTF-8...), never exposed to user code
@@ -67,8 +67,9 @@ void install_builtins(JSContext* ctx) {
     for (size_t i = 0; i < kEmbeddedJsCount; ++i) {
         const EmbeddedJs& file = kEmbeddedJs[i];
         std::string name = std::string("rtn:internal/") + file.name;
-        JSValue fn = JS_Eval(ctx, file.source, std::strlen(file.source), name.c_str(),
-                             JS_EVAL_TYPE_GLOBAL | JS_EVAL_FLAG_STRICT);
+        // Precompiled at build time (tools/embed_js.cpp): running the script gives the function.
+        JSValue code = JS_ReadObject(ctx, file.bytecode, file.size, JS_READ_OBJ_BYTECODE);
+        JSValue fn = JS_IsException(code) ? code : JS_EvalFunction(ctx, code);
         JSValue ret = JS_EXCEPTION;
         if (!JS_IsException(fn)) {
             JSValue args[] = {native, internal};
