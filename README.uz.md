@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/rtn-1.5.0.png" alt="RunTime-Now 1.5.0" width="760">
+<img src="assets/rtn-1.6.0.png" alt="RunTime-Now 1.6.0" width="760">
 
 # ⚡ RunTime-Now
 
@@ -57,6 +57,10 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
   - [Fayl tizimi: `rtn:fs`](#fayl-tizimi-rtnfs)
   - [HTTP server: `rtn.serve()`](#http-server-rtnserve)
   - [Web API'lar](#web-apilar)
+  - [fetch()](#fetch)
+  - [Hodisalar va bekor qilish](#hodisalar-va-bekor-qilish)
+  - [crypto va structuredClone](#crypto-va-structuredclone)
+  - [`node:path` va `node:fs/promises`](#nodepath-va-nodefspromises)
 - [TypeScript](#typescript)
 - [Arxitektura](#arxitektura)
 - [Tezlik](#tezlik)
@@ -88,9 +92,10 @@ bo'ladigan** runtime (taxminan 6 000 qator C++ va JavaScript), lekin u haqiqiy i
 | **Modullar** | ES modullar, kengaytmani avtomatik topish, JSON import, `import "./x.js"` → `x.ts`, dinamik `import()`, `import.meta` |
 | **Event loop** | Microtask → `process.nextTick` → taymerlar → **epoll** I/O, tartib Node bilan bir xil |
 | **HTTP server** | `rtn.serve()`: HTTP/1.1, keep-alive, pipelining, chunked body, `Expect: 100-continue`, bo'sh turish va so'rov timeout'lari, hajm limitlari |
-| **Web API** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `atob`/`btoa`, `performance.now()` |
-| **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write` …), `rtn:fs` / `node:fs` |
-| **Qulayliklar** | `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
+| **HTTP mijoz** | **`fetch()`**: redirect'lar, `AbortSignal` timeout'lari, `data:` manzillar, Node uslubidagi xatolar |
+| **Web API** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
+| **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`argv`, `env`, `exit`, `nextTick`, `hrtime`, `stdout.write` …), `node:fs`, **`node:fs/promises`** (bloklamaydi), **`node:path`** |
+| **Qulayliklar** | Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
 
 ## O'rnatish
 
@@ -125,7 +130,11 @@ Qisqa manzil GitHub Pages orqali ishlaydi; o'sha skript
 
 `rtn upgrade` xuddi `bun upgrade` kabi ishlaydi: yangi release'ni yuklaydi, uning SHA-256 xeshini e'lon
 qilingan `SHA256SUMS` bilan solishtiradi, yangi binary ishlashini tekshiradi va shundan keyingina uni
-atomik almashtiradi. Biror narsa xato ketsa, joriy `rtn` o'zgarishsiz qoladi.
+atomik almashtiradi. Biror narsa xato ketsa (yoki Ctrl+C bossangiz), joriy `rtn` o'zgarishsiz qoladi.
+Terminalda har bir bosqich animatsiya bilan ko'rsatiladi: tezlik va ETA'li gradient progress bar,
+har bir bosqich uchun ✓ va yakuniy ramka.
+
+<p align="center"><img src="assets/rtn-upgrade.png" alt="Animatsiyali progress bar bilan rtn upgrade" width="720"></p>
 
 ## Manbadan build qilish
 
@@ -190,7 +199,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v1.5.0 (QuickJS-ng 0.17.0)
+RunTime-Now v1.6.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const natija = await new Promise((r) => setTimeout(() => r("tayyor"), 100))
 > natija
@@ -285,6 +294,9 @@ Ko'proq misollar [`examples/`](examples) papkasida: `server.ts`, `ts/main.ts`, `
 | `queueMicrotask(fn)` | `fn` ni microtask sifatida bajaradi |
 | `process` | [process](#process) bo'limiga qarang |
 | `rtn` | `rtn.version`, `rtn.serve()` |
+| `fetch` | HTTP mijoz, [fetch()](#fetch) bo'limiga qarang |
+| `EventTarget`, `Event`, `CustomEvent`, `AbortController`, `AbortSignal` | [Hodisalar va bekor qilish](#hodisalar-va-bekor-qilish) bo'limiga qarang |
+| `crypto`, `structuredClone` | [crypto va structuredClone](#crypto-va-structuredclone) bo'limiga qarang |
 | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response` | [Web API'lar](#web-apilar) bo'limiga qarang |
 | `TextEncoder`, `TextDecoder` | UTF-8 |
 | `atob`, `btoa`, `performance.now()` | QuickJS-ng ichida bor |
@@ -346,7 +358,8 @@ import { yordamchi } from "./utils.ts";   // nisbiy import
 import { yordamchi } from "./utils";      // .js .mjs .ts .mts .json, keyin index.js / index.ts sinab ko'riladi
 import { yordamchi } from "./utils.js";   // utils.ts ga ham tushadi (TypeScript ESM uslubi)
 import malumot from "./data.json";        // JSON (default export)
-import fs from "rtn:fs";                  // o'rnatilgan modul ("node:fs" ham bo'ladi)
+import fs from "rtn:fs";                  // o'rnatilgan modul ("node:fs", "fs" ham bo'ladi)
+import path from "node:path";             // node:path, node:fs/promises
 const mod = await import("./lazy.js");    // dinamik import
 
 import.meta.url;        // "file:///toliq/yol/fayl.ts"
@@ -421,6 +434,64 @@ sekin so'rovga 408 (slowloris). Fayl deskriptorlari tugab qolsa ham server yiqil
 Body sifatida `string`, `Uint8Array` va boshqa `ArrayBufferView`, `ArrayBuffer`, `URLSearchParams`
 yoki `null` berish mumkin. Stream'lar (`ReadableStream`) va `formData()` hozircha yo'q.
 
+### fetch()
+
+```ts
+const res = await fetch("http://localhost:3000/todos", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ title: "hujjat yozish" }),
+  signal: AbortSignal.timeout(5000),     // ixtiyoriy: 5 soniyadan keyin to'xtatish
+});
+console.log(res.status, res.redirected, await res.json());
+```
+
+| Imkoniyat | Tafsilot |
+|---|---|
+| Manzillar | `http:` va `data:`. `https:` hozircha yo'q (TLS yo'q); `cause.code === "ERR_TLS_NOT_SUPPORTED"` xatosi qaytadi |
+| Redirect'lar | `redirect: "follow"` (standart, ko'pi bilan 20 ta), `"error"`, `"manual"`; 303 → GET; boshqa domenga o'tganda maxfiy sarlavhalar olib tashlanadi |
+| Bekor qilish | `signal` (`AbortController`, `AbortSignal.timeout()`, `AbortSignal.any()`) |
+| Body | string, baytlar, `URLSearchParams`; `Content-Length`, chunked yoki ulanish yopilguncha keladigan javoblar |
+| Xatolar | Node kabi: `TypeError: fetch failed`, sababi `cause` da, masalan `connect ECONNREFUSED 127.0.0.1:1` (`code`, `syscall`, `address`, `port`) yoki `getaddrinfo ENOTFOUND host` |
+
+DNS so'rovlari kichik thread pool'da bajariladi, shuning uchun event loop hech qachon bloklanmaydi.
+Har bir so'rov o'z ulanishidan foydalanadi (`connection: close`).
+
+### Hodisalar va bekor qilish
+
+`EventTarget`, `Event`, `CustomEvent` (`once`, `passive`, `signal` va `handleEvent` obyektli tinglovchilar),
+`AbortController` va `AbortSignal` (`abort()`, `timeout()`, `any()`, `throwIfAborted()`, `onabort`).
+Kutilayotgan `AbortSignal.timeout()` jarayonni ushlab turmaydi, xuddi Node'dagidek.
+
+### crypto va structuredClone
+
+```js
+crypto.randomUUID();                          // "3b241101-e2bb-4255-8caf-4136c566a962"
+crypto.getRandomValues(new Uint8Array(16));   // yadroning kriptografik generatoridan (getrandom)
+const nusxa = structuredClone({ vaqt: new Date(), teglar: new Set(["a"]), self: null });
+```
+
+`structuredClone` primitivlar, `Date`, `RegExp`, `Map`, `Set`, `ArrayBuffer` (`transfer` bilan), typed array'lar,
+`DataView`, xatolar, massivlar, oddiy obyektlar va aylanma havolalarni nusxalaydi; funksiya, symbol va platforma
+obyektlari `DataCloneError` beradi.
+
+### `node:path` va `node:fs/promises`
+
+```js
+import path from "node:path";            // "path", "rtn:path" ham bo'ladi
+import fs from "node:fs/promises";       // "fs/promises", (await import("fs")).promises ham bo'ladi
+
+const fayl = path.join(import.meta.dirname, "data", "eslatma.txt");
+await fs.mkdir(path.dirname(fayl), { recursive: true });
+await fs.writeFile(fayl, "salom");
+console.log(await fs.readFile(fayl, "utf8"), path.extname(fayl));   // salom .txt
+```
+
+`path` — Node'ning POSIX algoritmlari (`join`, `resolve`, `relative`, `normalize`, `dirname`, `basename`, `extname`,
+`parse`, `format`, `isAbsolute`, `sep`, `delimiter`); testlar natijani Node bilan solishtiradi.
+`fs/promises` da `readFile`, `writeFile`, `appendFile`, `readdir`, `mkdir`, `rm`, `rmdir`, `unlink`, `rename`,
+`copyFile`, `stat`, `lstat`, `access`, `realpath` va `constants` bor; ish thread pool'da bajariladi.
+
 ## TypeScript
 
 `rtn` TypeScript'ni **turlarni o'chirish** orqali ishga tushiradi. Node (`--experimental-strip-types`),
@@ -481,16 +552,21 @@ src/
 ├── runtime.cpp/.hpp      JS dvigatel, event loop, taymerlar, I/O, ushlanmagan rejection'lar
 ├── repl.cpp              REPL (async eval, ko'p qatorli kiritish, TypeScript)
 ├── upgrade.cpp           rtn upgrade: yuklash, SHA-256 tekshiruvi, atomik almashtirish
+├── term.cpp/.hpp         rtn upgrade uchun terminal UI: gradient, spinner, progress bar
 ├── modules.cpp/.hpp      Modullarni topish va yuklash
 ├── builtins.cpp          Ichki JS'ni ishga tushishda bajaradi
 ├── util.cpp/.hpp         Yordamchi funksiyalar, Node uslubidagi xatolar
 ├── typescript/strip.cpp  TypeScript → JavaScript (tokenizer + turlarni o'chiruvchi)
+├── js/events.js          EventTarget, Event, AbortController, AbortSignal
 ├── js/web.js             URL, URLSearchParams, Headers, Request, Response, TextEncoder/Decoder
+├── js/fetch.js           fetch()
+├── js/crypto.js          crypto, structuredClone
+├── js/modules.js         node:path, node:fs/promises
 ├── js/http.js            rtn.serve()
-└── bindings/             console, timers, process, fs, encoding, http
-tests/                    Test to'plami (run.sh, cases/, strip/, http_test.py, upgrade_test.sh)
+└── bindings/             console, timers, process, fs, encoding, http, fetch, crypto
+tests/                    Test to'plami (run.sh, cases/, strip/, http_test.py, fetch_test.py, upgrade_test.sh)
 install.sh                Bir qatorli o'rnatuvchi (curl … | bash)
-.github/workflows/        CI (har bir push) va release (har bir v* teg)
+.github/workflows/        CI (har bir push) va release (main'da versiya o'zgarganda yoki v* teg)
 tools/loadgen.cpp         Benchmark uchun HTTP/1.1 yuk generatori
 third_party/quickjs/      QuickJS-ng (git submodule)
 ```
@@ -529,10 +605,11 @@ tests/run.sh --update  # ataylab o'zgartirishdan keyin kutilgan natijalarni qayt
 
 | To'plam | Nimani tekshiradi |
 |---|---|
-| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 14 ta skript: console formati, event loop tartibi, modullar, fs, process, xatolar, TypeScript, Web API. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
+| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 19 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
 | `tests/strip/` | TypeScript → JavaScript natijasi belgima-belgi, qatorlar soni saqlanishi |
 | `tests/http_test.py` | Xom socket orqali 27 ta HTTP tekshiruvi: pipelining, chunked body, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 ta parallel so'rov, `stop()` |
-| `tests/upgrade_test.sh` | Soxta release server orqali `install.sh` va `rtn upgrade`: aniq va so'nggi versiya, PATH sozlash, buzilgan checksum, atomik yangilash |
+| `tests/fetch_test.py` | Xom socket server orqali 16 ta `fetch()` tekshiruvi: chunked, ulanish yopilguncha keladigan, 1xx, uzilgan, juda katta va buzilgan javoblar |
+| `tests/upgrade_test.sh` | Soxta release server orqali `install.sh` va `rtn upgrade`: aniq va so'nggi versiya, PATH sozlash, buzilgan checksum, atomik yangilash, animatsiyali terminal rejimi |
 | CLI + REPL | Argumentlar, stdin skriptlari, `await` bilan REPL sessiyasi |
 
 CI har bir push'da testlarni GCC va Clang bilan ishga tushiradi ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
@@ -543,11 +620,12 @@ bitta ham JS obyekt oqib qolmaganini `assert` bilan tekshiradi.
 
 RunTime-Now hali yosh loyiha. Hozircha yo'q narsalar (taxminiy muhimlik tartibida):
 
-- [ ] `fetch()` (HTTP mijoz)
-- [ ] `node:path`, asinxron `fs` (`fs/promises`)
+- [x] `fetch()` (HTTP mijoz) — `https:` pastdagi TLS'ni kutadi
+- [x] `node:path`, asinxron `fs` (`fs/promises`)
 - [ ] npm paketlari: `node_modules` va bare specifier'larni topish
 - [ ] CommonJS `require()`
-- [ ] `crypto` (`randomUUID`, `subtle`), `Buffer`, `structuredClone`, `AbortController`
+- [x] `crypto.randomUUID()` / `getRandomValues()`, `structuredClone`, `AbortController`, `EventTarget`
+- [ ] `crypto.subtle`, `Buffer`
 - [ ] Stream body'lar (`ReadableStream`), `FormData`, `Blob`
 - [ ] WebSocket, HTTPS/TLS
 - [ ] `Intl` (tilga moslangan formatlash)
