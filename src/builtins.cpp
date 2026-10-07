@@ -60,6 +60,7 @@ void install_builtins(JSContext* ctx) {
     add_fs_natives(ctx, native);
     add_module_natives(ctx, native);
     add_os_natives(ctx, native);
+    add_child_process_natives(ctx, native);
     JS_SetPropertyStr(ctx, native, "version", JS_NewString(ctx, RTN_VERSION));
     JS_SetPropertyStr(ctx, native, "cpuCount", JS_NewCFunction(ctx, js_cpu_count, "cpuCount", 0));
     JSValue internal = JS_NewObject(ctx);

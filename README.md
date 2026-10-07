@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="assets/rtn-2.0.0.png" alt="RunTime-Now 2.0.0" width="760">
+<img src="assets/rtn-2.1.0.png" alt="RunTime-Now 2.1.0" width="760">
 
 # ⚡ RunTime-Now
 
 **A small, fast JavaScript & TypeScript runtime written in C++**
 
 Run `.js` and `.ts` files, build HTTP servers and clients with Web-standard `fetch` / `Request` / `Response`,
-use npm packages and write tests — all from a single **~3 MB** binary that starts in **~6 ms**.
+use npm packages, run other programs and write tests — all from a single **~3 MB** binary that starts in **~6 ms**.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -47,6 +47,7 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 - [Installation](#installation)
 - [Build from source](#build-from-source)
 - [Command line](#command-line)
+- [Project workflow: scripts, watch mode, `.env`](#project-workflow-scripts-watch-mode-env)
 - [Examples](#examples)
 - [API reference](#api-reference)
   - [Globals at a glance](#globals-at-a-glance)
@@ -56,6 +57,7 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
   - [Modules](#modules)
   - [npm packages and CommonJS](#npm-packages-and-commonjs)
   - [Node built-in modules](#node-built-in-modules)
+  - [Child processes: `node:child_process`](#child-processes-nodechild_process)
   - [Testing your code: `rtn test`](#testing-your-code-rtn-test)
   - [File system: `rtn:fs`](#file-system-rtnfs)
   - [HTTP server: `rtn.serve()`](#http-server-rtnserve)
@@ -98,9 +100,9 @@ Node.js, Deno and Bun are big, sophisticated projects. RunTime-Now (`rtn`) is a 
 | **HTTP server** | `rtn.serve()`: HTTP/1.1, keep-alive, pipelining, chunked bodies, `Expect: 100-continue`, idle and request timeouts, size limits |
 | **HTTP client** | **`fetch()`** with redirects, `AbortSignal` timeouts, `data:` URLs and Node-style errors |
 | **Web APIs** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
-| **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (an `EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (non-blocking), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hashes, HMAC), `module`, `timers`, `tty` |
+| **Node-style APIs** | `console` (incl. `table`, `group`, `count`, `trace`, `time`), `process` (an `EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (non-blocking), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hashes, HMAC), **`child_process`**, `module`, `timers`, `tty` |
 | **Testing** | `rtn test`: built-in test runner with the Jest/Bun API (`describe`, `test`, `expect`, mocks, hooks) |
-| **Developer experience** | `rtn init` for a new TypeScript or JavaScript project, Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
+| **Developer experience** | `rtn run` for package.json scripts, `rtn --watch` (restart on save), automatic `.env` loading, `rtn init` for a new TypeScript or JavaScript project, Animated `rtn upgrade` with a live progress bar, REPL with top-level `await` and TS syntax, `rtn strip` to see the JS generated from TS, Node-style error output with `cause` and error codes |
 
 ## Installation
 
@@ -186,6 +188,9 @@ cmake --build build
 |---|---|
 | `rtn <file> [args...]` | Run a `.js`, `.mjs`, `.cjs`, `.ts`, `.mts` or `.cts` file (`process.argv` gets the args) |
 | `rtn run <file> [args...]` | Same as above |
+| `rtn run <script> [args...]` | Run a `package.json` script ([details](#project-workflow-scripts-watch-mode-env)); `rtn run` alone lists them |
+| `rtn --watch <file \| command>` | Restart when a source file changes: `rtn --watch app.ts`, `rtn --watch test` |
+| `rtn --env-file <file> …` | Load this `.env` file instead of `.env.local` / `.env.$NODE_ENV` / `.env` (`--no-env-file`: none) |
 | `rtn -e "<code>" [args...]` | Evaluate code as an ES module |
 | `rtn test [paths] [-t name]` | Run the tests in `*.test.*`, `*_test.*`, `*.spec.*` files ([rtn test](#testing-your-code-rtn-test)) |
 | `rtn init [dir]` | Create a project — asks **TypeScript** or **JavaScript** (↑/↓, Enter): `package.json`, `index.ts` / `index.js`, a test, `tsconfig.json` / `jsconfig.json`. Skip the question with `--ts` or `--js`; without a terminal (scripts, CI) it picks TypeScript |
@@ -202,7 +207,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v2.0.0 (QuickJS-ng 0.17.0)
+RunTime-Now v2.1.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const res = await new Promise((r) => setTimeout(() => r("done"), 100))
 > res
@@ -211,6 +216,70 @@ Type .help for help, .exit or Ctrl+D to quit.
 > add(2, 3)
 5
 ```
+
+## Project workflow: scripts, watch mode, `.env`
+
+**`rtn run`** runs the `"scripts"` of the nearest `package.json`, like `npm run` / `bun run`:
+
+```json
+{
+  "scripts": {
+    "dev": "rtn --watch src/server.ts",
+    "test": "rtn test",
+    "pretest": "echo checking…"
+  }
+}
+```
+
+```text
+$ rtn run test -t parser
+$ echo checking…
+checking…
+$ rtn test -t parser
+…
+```
+
+The script runs in `/bin/sh` from the package's directory, with `node_modules/.bin` (of the package and
+every directory above it) and rtn itself first on `PATH`. `pre<name>` / `post<name>` run around it,
+extra arguments are passed on, and `npm_package_name`, `npm_package_version`, `npm_lifecycle_event`
+are set. The exit code is the script's. `rtn run` with no name lists the scripts.
+
+**`rtn --watch`** restarts your program when a `.js`, `.ts`, `.json` or `.env` file changes:
+
+```text
+$ rtn --watch server.ts
+● rtn --watch server.ts · 3 directories
+Listening on http://localhost:3000/
+● rtn --watch restarting · src/routes.ts changed
+Listening on http://localhost:3000/
+```
+
+It watches the current directory tree with inotify (skipping `node_modules` and hidden directories),
+waits for a short quiet period so an editor's save counts once, and works with any command:
+`rtn --watch test`, `rtn --watch run dev`. Ctrl+C stops everything.
+
+**`.env` files** are loaded into `process.env` before your code runs, from the current directory:
+
+| File | Loaded |
+|---|---|
+| `.env.local` | Always, except when `NODE_ENV=test` |
+| `.env.$NODE_ENV` | When `NODE_ENV` is set, e.g. `.env.production` |
+| `.env` | Always |
+
+```sh
+# .env
+DATABASE_URL="postgres://localhost/dev"   # comments are fine
+API_URL=${HOST:-http://localhost}:8080    # ${VAR} and ${VAR:-default} expand
+export DEBUG=1
+PRIVATE_KEY="-----BEGIN KEY-----
+multi-line values work in double quotes
+-----END KEY-----"
+```
+
+Variables that are already set in the environment win, then the files in the order above. Child
+processes and `rtn run` scripts see the values too. `--env-file path` (repeatable, later files win)
+loads only the files you name; `--no-env-file` turns loading off. Both go before the file or command:
+`rtn --env-file .env.staging server.ts`.
 
 ## Examples
 
@@ -391,7 +460,7 @@ const dayjs = require("dayjs");                   // in a .cjs file (or any Comm
 | Interop | `import` of a CommonJS file gives `module.exports` as the default export and its properties as named exports; `require()` of an ES module works when it has no top-level `await` |
 | TypeScript | `.ts`, `.mts`, `.cts` files work everywhere, also inside `node_modules` |
 
-Not yet: native addons (`.node`), `node:child_process`, `node:stream`, `node:http` (use `rtn.serve()` and `fetch()`).
+Not yet: native addons (`.node`), `node:stream`, `node:http` (use `rtn.serve()` and `fetch()`).
 
 ### Node built-in modules
 
@@ -406,11 +475,39 @@ Every module works as `node:x` and `x`; `import fs from "fs"` and `require("fs")
 | `util` | `format`, `inspect`, `promisify`, `callbackify`, `inherits`, `deprecate`, `isDeepStrictEqual`, `types`, `styleText` |
 | `assert`, `assert/strict` | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match`, … |
 | `crypto` | `createHash` / `createHmac` (sha256, sha1, md5), `randomBytes`, `randomInt`, `randomUUID`, `timingSafeEqual`; global `crypto.subtle.digest` |
+| `child_process` | `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` ([below](#child-processes-nodechild_process)) |
 | `os`, `url`, `module`, `timers`, `timers/promises`, `process`, `tty` | The commonly used functions (`os.cpus()`, `fileURLToPath`, `createRequire`, `setTimeout` promise, …) |
 
 `process` is an `EventEmitter` (`process.on("exit")`), and `global`, `setImmediate`, `process.emitWarning` exist.
 **Note (2.0):** `process.version` reports the Node version whose APIs rtn follows (`v22.12.0`), so packages
 pick their Node code paths; rtn's own version is `process.versions.rtn` / `rtn.version`.
+
+### Child processes: `node:child_process`
+
+```ts
+import { spawn, exec, execSync } from "node:child_process";
+import { promisify } from "node:util";
+
+const branch = execSync("git branch --show-current", { encoding: "utf8" }).trim();
+
+const { stdout } = await promisify(exec)("ls -1 src | wc -l");
+console.log(`${stdout.trim()} files on ${branch}`);
+
+const child = spawn("grep", ["-c", "TODO"], { cwd: "src" });
+child.stdout.setEncoding("utf8").on("data", (n) => console.log("TODOs:", n.trim()));
+child.on("close", (code) => console.log("grep exited with", code));
+child.stdin.end("TODO: one\nTODO: two\n");
+```
+
+| | |
+|---|---|
+| Functions | `spawn`, `exec`, `execFile` (callback, or `util.promisify` → `{ stdout, stderr }`), `spawnSync`, `execSync`, `execFileSync` |
+| Options | `cwd`, `env`, `stdio` (`"pipe"`, `"inherit"`, `"ignore"`, per fd), `shell`, `input`, `encoding`, `timeout`, `killSignal`, `maxBuffer`, `signal` (AbortSignal), `argv0` |
+| `ChildProcess` | `pid`, `stdin` / `stdout` / `stderr` (`data`, `end`, `setEncoding`, `pipe()`, `for await`), `kill()`, `exitCode`, `signalCode`; events `spawn`, `exit`, `close`, `error` |
+| Errors | As in Node: `spawn foo ENOENT` (`code`, `errno`, `syscall`, `path`, `spawnargs`), `Command failed: …` with `status` / `code`, `signal`, `stdout`, `stderr` |
+
+`tests/cases/child-process.mjs` prints exactly what Node 22 prints. Not supported: `fork()` and IPC
+(`send()`), `detached` process groups and `stdio` entries other than the three above.
 
 ### Testing your code: `rtn test`
 
@@ -443,7 +540,7 @@ test("mocks", () => {
 ```text
 $ rtn test
 
-● rtn test v2.0.0
+● rtn test v2.1.0
 
 math.test.ts:
   ✓ add › adds numbers [0.09ms]
@@ -642,6 +739,8 @@ flowchart TB
 ```
 src/
 ├── main.cpp              CLI
+├── dotenv.cpp/.hpp       .env parsing and loading
+├── watch.cpp/.hpp        rtn --watch: inotify, restarts
 ├── runtime.cpp/.hpp      JS engine, event loop, timers, I/O, unhandled rejections
 ├── repl.cpp              REPL (async eval, multi-line input, TypeScript)
 ├── upgrade.cpp           rtn upgrade: download, verify SHA-256, atomic replace
@@ -658,9 +757,11 @@ src/
 ├── js/buffer.js          Buffer
 ├── js/node.js            node:events, util, os, assert, url, crypto, timers, process
 ├── js/cjs.js             npm package resolution, CommonJS require()
+├── js/child_process.js   node:child_process
 ├── js/test.js, init.js   rtn test, rtn init
+├── js/scripts.js         rtn run <script>
 ├── js/http.js            rtn.serve()
-└── bindings/             console, timers, process, fs, encoding, http, fetch, crypto
+└── bindings/             console, timers, process, fs, encoding, http, fetch, crypto, child_process
 tests/                    Test suite (run.sh, cases/, strip/, http_test.py, fetch_test.py, upgrade_test.sh)
 install.sh                One-line installer (curl … | bash)
 .github/workflows/        CI (every push) and release (a version bump on main, or a v* tag)
@@ -703,11 +804,13 @@ tests/run.sh --update  # regenerate expected outputs after an intentional change
 
 | Suite | What it checks |
 |---|---|
-| `tests/cases/` | 21 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto, and `node-compat.mjs` (Buffer, events, util, assert, crypto, …), whose output is **identical to Node 22**. Several outputs are **identical to Node or Deno** |
+| `tests/cases/` | 22 scripts with expected stdout/stderr and exit codes: console format, event loop order, modules, fs, fs/promises, path, process, errors, TypeScript, Web APIs, events, fetch, crypto, and `node-compat.mjs` (Buffer, events, util, assert, crypto, …) and `child-process.mjs`, whose output is **identical to Node 22**. Several outputs are **identical to Node or Deno** |
 | `tests/strip/` | Exact TypeScript → JavaScript output, and that line numbers are preserved |
 | `tests/http_test.py` | 27 HTTP checks over raw sockets: pipelining, chunked bodies, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 concurrent requests, graceful `stop()` |
 | `tests/fixtures/project` | npm package resolution and CommonJS: `exports` conditions and patterns, `imports`, scoped packages, nested `node_modules`, `require` cycles, `__esModule`, `require(esm)` |
-| `tests/fixtures/testrunner` | `rtn test` output (passing, failing, skipped, todo, timeouts, a broken file) and `rtn init` |
+| `tests/fixtures/testrunner` | `rtn test` output (passing, failing, skipped, todo, timeouts, a broken file) and `rtn init` (TypeScript and JavaScript) |
+| `tests/fixtures/scripts`, `dotenv` | `rtn run` (pre/post hooks, arguments, `node_modules/.bin`, exit codes) and `.env` parsing, file priority, `--env-file` |
+| `--watch` | A real restart after an imported file changes, and that SIGTERM stops the program too |
 | `tests/fetch_test.py` | 16 `fetch()` checks against a raw-socket server: chunked, close-delimited, 1xx, truncated, oversized and malformed responses |
 | `tests/upgrade_test.sh` | `install.sh` and `rtn upgrade` against a fake release server: pinned and latest installs, PATH setup, tampered checksums, atomic upgrade, the animated terminal mode |
 | CLI + REPL | Arguments, stdin scripts, REPL session with `await` |
@@ -727,7 +830,8 @@ RunTime-Now is young. Here is what doesn't exist yet, roughly in priority order:
 - [x] A test runner (`rtn test`)
 - [x] `crypto.randomUUID()` / `getRandomValues()`, `structuredClone`, `AbortController`, `EventTarget`
 - [x] `Buffer`, `crypto.subtle.digest`, `node:events` / `util` / `os` / `assert`
-- [ ] `node:stream`, `node:child_process`, `node:http`, more of `crypto.subtle`
+- [x] `node:child_process`, `rtn run` (package.json scripts), `--watch`, `.env` files
+- [ ] `node:stream`, `node:http`, more of `crypto.subtle`
 - [ ] Streaming bodies (`ReadableStream`), `FormData`, `Blob`
 - [ ] WebSocket, HTTPS/TLS
 - [ ] `Intl` (locale-aware formatting)

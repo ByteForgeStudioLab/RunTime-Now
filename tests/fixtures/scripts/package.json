@@ -1,0 +1,13 @@
+{
+  "name": "scripts-fixture",
+  "version": "1.2.3",
+  "scripts": {
+    "prehello": "echo pre",
+    "hello": "echo hello from $npm_package_name@$npm_package_version",
+    "posthello": "echo post",
+    "args": "printf '[%s]'",
+    "tool": "fixture-tool",
+    "self": "rtn -e 'console.log(1 + 1)'",
+    "fail": "exit 7"
+  }
+}

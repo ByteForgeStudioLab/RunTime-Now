@@ -1,7 +1,13 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 — 2026-10-07
 
+Run other programs, your package.json scripts and a dev loop that restarts on save.
+
+- **`node:child_process`**: `spawn`, `exec`, `execFile` and `spawnSync`, `execSync`, `execFileSync` (also as `child_process`, and through `require()`). Children run with pipes or the terminal (`stdio: "pipe" | "inherit" | "ignore"`), `cwd`, `env`, `shell`, `input`, `timeout`, `killSignal`, `maxBuffer` and `signal` (AbortSignal). `ChildProcess` has `stdin` / `stdout` / `stderr` streams (`data` / `end`, `setEncoding`, `pipe()`, `for await`) and `spawn` / `exit` / `close` / `error` events; `util.promisify(exec)` resolves to `{ stdout, stderr }`. Errors match Node's (`spawn foo ENOENT`, `Command failed: …` with `status` / `code` / `signal`). Exit is tracked with a pidfd, so a running child keeps the event loop alive and costs nothing while it waits. `tests/cases/child-process.mjs` prints exactly what Node 22 prints.
+- **`rtn run <script>`**: runs a `"scripts"` entry of the nearest `package.json`, like `npm run` / `bun run`: `pre<name>` / `post<name>` hooks, extra arguments passed on (quoted), `node_modules/.bin` and rtn itself on `PATH`, the `npm_package_*` / `npm_lifecycle_event` variables, and the script's exit code. `rtn run` alone lists the scripts. `rtn run <file>` still runs a file.
+- **`rtn --watch <file>`**: restarts the program when a `.js` / `.ts` / `.json` / `.env` file in the project changes (inotify; `node_modules` and hidden directories skipped, new directories picked up). Works with any command: `rtn --watch test`, `rtn --watch run dev`. Ctrl+C or SIGTERM stops the program too.
+- **`.env` files**: `.env.local`, `.env.$NODE_ENV` and `.env` are loaded into `process.env` before your code runs (and passed on to child processes and scripts). Quotes, multi-line values, comments, `export`, and `${VAR}` / `${VAR:-default}` expansion. Variables already in the environment win. `--env-file <file>` (repeatable) loads other files instead, `--no-env-file` turns it off.
 - **`rtn init` asks TypeScript or JavaScript**: an arrow-key menu (↑/↓ or j/k, `1`/`2`, Enter; Esc or Ctrl+C cancels) picks the template. The JavaScript project has `index.js`, `greet.js` with JSDoc types, `greet.test.js` and a `jsconfig.json` with `checkJs`. `--ts` / `--js` (or `-y` for TypeScript) skip the question, and without a terminal — scripts, CI — TypeScript is chosen as before.
 
 ## 2.0.0 — 2026-10-05

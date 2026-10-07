@@ -2,12 +2,16 @@
 //
 //   rtn <file.js|file.ts> [args...]   run a file
 //   rtn run <file>                     same thing
+//   rtn run [script] [args...]         run a package.json script (no name: list them)
 //   rtn -e "<code>" [args...]          run code from the command line
 //   rtn test [paths] [-t pattern]      run tests written with rtn:test
 //   rtn init [dir] [--ts|--js]         create a new TypeScript or JavaScript project
 //   rtn strip <file.ts>                print the JavaScript produced from a .ts file
 //   rtn upgrade [-r] [--check]         update rtn to the latest release (alias: update)
 //   rtn                                REPL (or run stdin as a script when it's piped)
+//
+//   --watch                            restart when a source file changes
+//   --env-file <file>, --no-env-file   which .env files to load (default: .env.local, .env.$NODE_ENV, .env)
 
 #include <climits>
 #include <cstdio>
@@ -19,10 +23,12 @@
 
 #include "quickjs.h"
 #include "runtime.hpp"
+#include "dotenv.hpp"
 #include "term.hpp"
 #include "typescript/strip.hpp"
 #include "upgrade.hpp"
 #include "util.hpp"
+#include "watch.hpp"
 
 namespace {
 
@@ -33,6 +39,7 @@ void print_usage() {
         "Usage:\n"
         "  rtn <file> [args...]        Run a .js / .mjs / .ts / .mts file\n"
         "  rtn run <file> [args...]    Same as above\n"
+        "  rtn run <script> [args...]  Run a package.json script (rtn run: list them)\n"
         "  rtn -e \"<code>\" [args...]   Evaluate code\n"
         "  rtn test [paths] [-t name]  Run tests (*.test.ts, *.spec.js, ...) with rtn:test\n"
         "  rtn init [dir] [--ts|--js]  Create a new project (asks TypeScript or JavaScript)\n"
@@ -42,13 +49,16 @@ void print_usage() {
         "  rtn -i                      Force the REPL even when stdin is piped\n"
         "  rtn -                       Run a script read from stdin\n"
         "\n"
-        "Options:\n"
+        "Options (before the file or command):\n"
+        "  --watch                     Restart when a .js/.ts/.json/.env file changes\n"
+        "  --env-file <file>           Load this .env file (repeatable) instead of the default ones\n"
+        "  --no-env-file               Don't load .env, .env.local, .env.$NODE_ENV\n"
         "  -h, --help                  Show this help\n"
         "  -v, --version               Show version\n"
         "\n"
         "Built-in modules (the node: prefix is optional):\n"
         "  node:fs, fs/promises, path, events, util, os, assert, buffer, url, crypto,\n"
-        "  module, process, timers, tty   ·   rtn:test (test, describe, expect, mock)\n"
+        "  module, process, timers, tty, child_process   ·   rtn:test (test, describe, expect, mock)\n"
         "  npm packages from node_modules work with import and require().\n"
         "\n"
         "Globals:\n"
@@ -105,9 +115,61 @@ int run_repl_or_stdin(std::string& self, bool force_repl) {
 
 int main(int argc, char** argv) {
     std::string self = self_path(argv[0]);
+
+    // Options that come before the command: --watch, --env-file, --no-env-file.
+    bool watch = false, auto_env = true;
+    std::vector<std::string> env_files;
+    int first = 1;
+    while (first < argc) {
+        std::string a = argv[first];
+        if (a == "--watch") {
+            watch = true;
+        } else if (a == "--no-env-file") {
+            auto_env = false;
+        } else if (a.starts_with("--env-file=")) {
+            env_files.push_back(a.substr(11));
+        } else if (a == "--env-file") {
+            if (first + 1 >= argc) {
+                std::fprintf(stderr, "error: --env-file requires a file\n");
+                return 1;
+            }
+            env_files.push_back(argv[++first]);
+        } else {
+            break;
+        }
+        ++first;
+    }
+    if (watch) {
+        if (first >= argc) {
+            std::fprintf(stderr, "error: --watch requires a file or command (rtn --watch app.ts)\n");
+            return 1;
+        }
+        // The child gets everything but --watch, and loads the .env files itself on every restart.
+        std::vector<std::string> child_args;
+        for (int i = 1; i < argc; ++i) {
+            if (std::strcmp(argv[i], "--watch") != 0 || i >= first) child_args.push_back(argv[i]);
+        }
+        return rtn::run_watch(self, child_args);
+    }
+    std::vector<char*> shifted{argv[0]};
+    for (int i = first; i < argc; ++i) shifted.push_back(argv[i]);
+    shifted.push_back(nullptr);
+    argc = static_cast<int>(shifted.size()) - 1;
+    argv = shifted.data();
+
+    std::string cmd = argc > 1 ? argv[1] : "";
+    // .env files, for every command that runs JavaScript.
+    bool runs_code = cmd != "-h" && cmd != "--help" && cmd != "-v" && cmd != "--version" && cmd != "upgrade" &&
+                     cmd != "update" && cmd != "strip" && cmd != "init";
+    if (runs_code) {
+        std::string error;
+        if (!rtn::dotenv::load(env_files, auto_env, error)) {
+            std::fprintf(stderr, "error: --env-file %s\n", error.c_str());
+            return 1;
+        }
+    }
     if (argc < 2) return run_repl_or_stdin(self, false);
 
-    std::string cmd = argv[1];
     if (cmd == "-h" || cmd == "--help") {
         print_usage();
         return 0;
@@ -156,6 +218,18 @@ int main(int argc, char** argv) {
         }
         std::fwrite(r.code.data(), 1, r.code.size(), stdout);
         return 0;
+    }
+
+    // `rtn run` lists package.json scripts; `rtn run <name>` runs one, unless <name> is a file.
+    if (cmd == "run" && (argc == 2 || !std::filesystem::is_regular_file(argv[2]))) {
+        if (argc > 2 && argv[2][0] == '-') {
+            std::fprintf(stderr, "error: unknown option '%s'\n", argv[2]);
+            return 1;
+        }
+        std::vector<std::string> rest(argv + 2, argv + argc);
+        auto args = make_argv(self, argv + 2, argv + argc);
+        rtn::Runtime runtime(static_cast<int>(args.size()), args.data());
+        return runtime.run_internal("runScript", rest);
     }
 
     int file_idx = (cmd == "run") ? 2 : 1;

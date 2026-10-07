@@ -18,7 +18,7 @@
 
   // Node's built-in modules that work without the "node:" prefix (as in src/modules.cpp).
   const UNPREFIXED = new Set(["fs", "fs/promises", "path", "path/posix", "events", "util", "os", "assert",
-    "assert/strict", "module", "buffer", "url", "process", "timers", "timers/promises", "crypto", "util/types", "tty"]);
+    "assert/strict", "module", "buffer", "url", "process", "timers", "timers/promises", "crypto", "util/types", "tty", "child_process"]);
 
   function builtinKey(spec) {
     let key;

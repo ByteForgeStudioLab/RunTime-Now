@@ -1,0 +1,20 @@
+err
+sync: hello
+execFileSync: a-b
+spawnSync: 3 "piped in" null
+ENOENT sync: ENOENT
+execSync fail: 2 Command failed: exit 2
+timeout: ETIMEDOUT SIGTERM
+promisify exec: bar
+execFile reject: 4 oops
+spawned pid>0: true
+exit: 0 null
+close: 0 "line 1\nline 2\n"
+error: spawn no-such-cmd-xyz ENOENT ENOENT spawn no-such-cmd-xyz no-such-cmd-xyz [ 'a' ]
+killed: null SIGTERM true
+$HOME is not expanded
+shell: 3
+cwd: /tmp
+function function
+big: 3000000
+maxBuffer: ERR_CHILD_PROCESS_STDIO_MAXBUFFER
