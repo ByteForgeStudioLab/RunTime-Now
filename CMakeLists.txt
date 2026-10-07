@@ -28,9 +28,11 @@ set(RTN_JS_FILES
     ${CMAKE_SOURCE_DIR}/src/js/modules.js
     ${CMAKE_SOURCE_DIR}/src/js/buffer.js
     ${CMAKE_SOURCE_DIR}/src/js/node.js
+    ${CMAKE_SOURCE_DIR}/src/js/child_process.js
     ${CMAKE_SOURCE_DIR}/src/js/cjs.js
     ${CMAKE_SOURCE_DIR}/src/js/test.js
     ${CMAKE_SOURCE_DIR}/src/js/init.js
+    ${CMAKE_SOURCE_DIR}/src/js/scripts.js
     ${CMAKE_SOURCE_DIR}/src/js/navigator.js
     ${CMAKE_SOURCE_DIR}/src/js/http.js
 )
@@ -51,6 +53,8 @@ add_executable(rtn
     src/runtime.cpp
     src/repl.cpp
     src/upgrade.cpp
+    src/dotenv.cpp
+    src/watch.cpp
     src/term.cpp
     src/modules.cpp
     src/util.cpp
@@ -64,6 +68,7 @@ add_executable(rtn
     src/bindings/fetch.cpp
     src/bindings/crypto.cpp
     src/bindings/os.cpp
+    src/bindings/child_process.cpp
     src/builtins.cpp
     ${CMAKE_BINARY_DIR}/embedded_js.cpp
 )

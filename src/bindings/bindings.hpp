@@ -32,5 +32,6 @@ void add_crypto_natives(JSContext* ctx, JSValueConst native);
 void add_fs_natives(JSContext* ctx, JSValueConst native);
 void add_module_natives(JSContext* ctx, JSValueConst native);
 void add_os_natives(JSContext* ctx, JSValueConst native);
+void add_child_process_natives(JSContext* ctx, JSValueConst native);
 
 }  // namespace rtn
