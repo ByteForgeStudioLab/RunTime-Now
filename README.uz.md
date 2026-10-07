@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="assets/rtn-2.0.0.png" alt="RunTime-Now 2.0.0" width="760">
+<img src="assets/rtn-2.1.0.png" alt="RunTime-Now 2.1.0" width="760">
 
 # ⚡ RunTime-Now
 
 **C++ da yozilgan kichik va tez JavaScript va TypeScript runtime**
 
 `.js` va `.ts` fayllarni ishga tushiring, Web standartidagi `fetch` / `Request` / `Response` bilan HTTP server va mijoz yozing,
-npm paketlaridan foydalaning va testlar yozing. Hammasi bitta **~3 MB** li dasturda, **~6 ms** da ishga tushadi.
+npm paketlaridan foydalaning, boshqa dasturlarni ishga tushiring va testlar yozing. Hammasi bitta **~3 MB** li dasturda, **~6 ms** da ishga tushadi.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus)
@@ -47,6 +47,7 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
 - [O'rnatish](#ornatish)
 - [Manbadan build qilish](#manbadan-build-qilish)
 - [Buyruqlar qatori (CLI)](#buyruqlar-qatori-cli)
+- [Loyiha bilan ishlash: skriptlar, watch rejimi, `.env`](#loyiha-bilan-ishlash-skriptlar-watch-rejimi-env)
 - [Misollar](#misollar)
 - [API ma'lumotnomasi](#api-malumotnomasi)
   - [Global obyektlar](#global-obyektlar)
@@ -56,6 +57,7 @@ curl -fsSL https://byteforgestudiolab.github.io/RunTime-Now/install | bash
   - [Modullar](#modullar)
   - [npm paketlari va CommonJS](#npm-paketlari-va-commonjs)
   - [Node'ning o'rnatilgan modullari](#nodening-ornatilgan-modullari)
+  - [Boshqa dasturlarni ishga tushirish: `node:child_process`](#boshqa-dasturlarni-ishga-tushirish-nodechild_process)
   - [Kodingizni testlash: `rtn test`](#kodingizni-testlash-rtn-test)
   - [Fayl tizimi: `rtn:fs`](#fayl-tizimi-rtnfs)
   - [HTTP server: `rtn.serve()`](#http-server-rtnserve)
@@ -98,9 +100,9 @@ bo'ladigan** runtime (taxminan 12 000 qator C++ va JavaScript), lekin u haqiqiy 
 | **HTTP server** | `rtn.serve()`: HTTP/1.1, keep-alive, pipelining, chunked body, `Expect: 100-continue`, bo'sh turish va so'rov timeout'lari, hajm limitlari |
 | **HTTP mijoz** | **`fetch()`**: redirect'lar, `AbortSignal` timeout'lari, `data:` manzillar, Node uslubidagi xatolar |
 | **Web API** | `URL`, `URLSearchParams`, `Headers`, `Request`, `Response`, `TextEncoder`, `TextDecoder`, `EventTarget`, `AbortController`, `crypto.randomUUID()`, `structuredClone()`, `atob`/`btoa`, `performance.now()` |
-| **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (bloklamaydi), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hash, HMAC), `module`, `timers`, `tty` |
+| **Node uslubidagi API** | `console` (`table`, `group`, `count`, `trace`, `time` bilan), `process` (`EventEmitter`), `Buffer`, `node:fs`, `fs/promises` (bloklamaydi), `path`, `events`, `util`, `os`, `assert`, `url`, `crypto` (hash, HMAC), **`child_process`**, `module`, `timers`, `tty` |
 | **Testlash** | `rtn test`: Jest/Bun API'li o'rnatilgan test runner (`describe`, `test`, `expect`, mock'lar, hook'lar) |
-| **Qulayliklar** | Yangi TypeScript yoki JavaScript loyiha uchun `rtn init`, Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
+| **Qulayliklar** | package.json skriptlari uchun `rtn run`, `rtn --watch` (saqlanganda qayta ishga tushirish), `.env` fayllarini avtomatik yuklash, yangi TypeScript yoki JavaScript loyiha uchun `rtn init`, Jonli progress bar'li animatsiyali `rtn upgrade`, `await` va TS sintaksisini qo'llaydigan REPL, TS'dan qanday JS chiqishini ko'rsatadigan `rtn strip`, `cause` va xato kodlari bilan Node uslubidagi xato chiqishi |
 
 ## O'rnatish
 
@@ -190,6 +192,9 @@ cmake --build build
 |---|---|
 | `rtn <fayl> [argumentlar...]` | `.js`, `.mjs`, `.cjs`, `.ts`, `.mts` yoki `.cts` faylni ishga tushirish (argumentlar `process.argv` ga keladi) |
 | `rtn run <fayl> [argumentlar...]` | Yuqoridagi bilan bir xil |
+| `rtn run <skript> [argumentlar...]` | `package.json` skriptini ishga tushirish ([batafsil](#loyiha-bilan-ishlash-skriptlar-watch-rejimi-env)); faqat `rtn run` — ro'yxatini ko'rsatadi |
+| `rtn --watch <fayl \| buyruq>` | Manba fayl o'zgarganda qayta ishga tushirish: `rtn --watch app.ts`, `rtn --watch test` |
+| `rtn --env-file <fayl> …` | `.env.local` / `.env.$NODE_ENV` / `.env` o'rniga shu `.env` faylni yuklash (`--no-env-file`: hech birini) |
 | `rtn -e "<kod>" [argumentlar...]` | Kodni ES modul sifatida bajarish |
 | `rtn test [yo'llar] [-t nom]` | `*.test.*`, `*_test.*`, `*.spec.*` fayllardagi testlarni ishga tushirish ([rtn test](#kodingizni-testlash-rtn-test)) |
 | `rtn init [papka]` | Loyiha yaratish — **TypeScript** yoki **JavaScript**ni so'raydi (↑/↓, Enter): `package.json`, `index.ts` / `index.js`, test, `tsconfig.json` / `jsconfig.json`. Savolsiz: `--ts` yoki `--js`; terminal bo'lmasa (skriptlar, CI) TypeScript tanlanadi |
@@ -206,7 +211,7 @@ cmake --build build
 
 ```text
 $ rtn
-RunTime-Now v2.0.0 (QuickJS-ng 0.17.0)
+RunTime-Now v2.1.0 (QuickJS-ng 0.17.0)
 Type .help for help, .exit or Ctrl+D to quit.
 > const natija = await new Promise((r) => setTimeout(() => r("tayyor"), 100))
 > natija
@@ -215,6 +220,71 @@ Type .help for help, .exit or Ctrl+D to quit.
 > qosh(2, 3)
 5
 ```
+
+## Loyiha bilan ishlash: skriptlar, watch rejimi, `.env`
+
+**`rtn run`** eng yaqin `package.json` dagi `"scripts"` ni ishga tushiradi — xuddi `npm run` / `bun run` kabi:
+
+```json
+{
+  "scripts": {
+    "dev": "rtn --watch src/server.ts",
+    "test": "rtn test",
+    "pretest": "echo tekshirilmoqda…"
+  }
+}
+```
+
+```text
+$ rtn run test -t parser
+$ echo tekshirilmoqda…
+tekshirilmoqda…
+$ rtn test -t parser
+…
+```
+
+Skript paket papkasidan `/bin/sh` da ishlaydi. `PATH` ning boshida `node_modules/.bin` (paketniki va undan
+yuqoridagi har bir papkaniki) hamda rtn'ning o'zi turadi. `pre<nom>` / `post<nom>` skriptlari undan oldin va
+keyin ishlaydi, qo'shimcha argumentlar skriptga uzatiladi, `npm_package_name`, `npm_package_version`,
+`npm_lifecycle_event` o'zgaruvchilari o'rnatiladi. Chiqish kodi — skriptning chiqish kodi. Nomsiz `rtn run`
+skriptlar ro'yxatini ko'rsatadi.
+
+**`rtn --watch`** `.js`, `.ts`, `.json` yoki `.env` fayl o'zgarganda dasturni qayta ishga tushiradi:
+
+```text
+$ rtn --watch server.ts
+● rtn --watch server.ts · 3 directories
+Listening on http://localhost:3000/
+● rtn --watch restarting · src/routes.ts changed
+Listening on http://localhost:3000/
+```
+
+U joriy papka daraxtini inotify bilan kuzatadi (`node_modules` va yashirin papkalar o'tkazib yuboriladi),
+muharrir faylni bir necha bosqichda saqlasa ham bir marta qayta ishga tushirish uchun qisqa pauzani kutadi va
+istalgan buyruq bilan ishlaydi: `rtn --watch test`, `rtn --watch run dev`. Ctrl+C hammasini to'xtatadi.
+
+**`.env` fayllari** kodingiz ishga tushishidan oldin joriy papkadan `process.env` ga yuklanadi:
+
+| Fayl | Qachon yuklanadi |
+|---|---|
+| `.env.local` | Har doim, `NODE_ENV=test` bo'lgandan tashqari |
+| `.env.$NODE_ENV` | `NODE_ENV` o'rnatilgan bo'lsa, masalan `.env.production` |
+| `.env` | Har doim |
+
+```sh
+# .env
+DATABASE_URL="postgres://localhost/dev"   # izohlar mumkin
+API_URL=${HOST:-http://localhost}:8080    # ${VAR} va ${VAR:-default} almashtiriladi
+export DEBUG=1
+PRIVATE_KEY="-----BEGIN KEY-----
+qo'shtirnoq ichida ko'p qatorli qiymatlar ishlaydi
+-----END KEY-----"
+```
+
+Muhitda allaqachon o'rnatilgan o'zgaruvchilar ustun turadi, keyin fayllar yuqoridagi tartibda. Child
+process'lar va `rtn run` skriptlari ham bu qiymatlarni ko'radi. `--env-file yo'l` (bir necha marta berish
+mumkin, keyingisi ustun) faqat ko'rsatilgan fayllarni yuklaydi; `--no-env-file` yuklashni o'chiradi. Ikkalasi
+ham fayl yoki buyruqdan oldin yoziladi: `rtn --env-file .env.staging server.ts`.
 
 ## Misollar
 
@@ -395,7 +465,7 @@ const dayjs = require("dayjs");                   // .cjs faylda (yoki istalgan 
 | O'zaro ishlash | CommonJS faylni `import` qilsangiz `module.exports` default export, xossalari nomli export bo'ladi; top-level `await` ishlatmaydigan ES modulni `require()` qilsa bo'ladi |
 | TypeScript | `.ts`, `.mts`, `.cts` hamma joyda ishlaydi, `node_modules` ichida ham |
 
-Hozircha yo'q: native addon'lar (`.node`), `node:child_process`, `node:stream`, `node:http` (o'rniga `rtn.serve()` va `fetch()`).
+Hozircha yo'q: native addon'lar (`.node`), `node:stream`, `node:http` (o'rniga `rtn.serve()` va `fetch()`).
 
 ### Node'ning o'rnatilgan modullari
 
@@ -410,11 +480,39 @@ Har bir modul `node:x` va `x` ko'rinishida ishlaydi; `import fs from "fs"` va `r
 | `util` | `format`, `inspect`, `promisify`, `callbackify`, `inherits`, `deprecate`, `isDeepStrictEqual`, `types`, `styleText` |
 | `assert`, `assert/strict` | `ok`, `equal`, `strictEqual`, `deepStrictEqual`, `throws`, `rejects`, `match`, … |
 | `crypto` | `createHash` / `createHmac` (sha256, sha1, md5), `randomBytes`, `randomInt`, `randomUUID`, `timingSafeEqual`; global `crypto.subtle.digest` |
+| `child_process` | `spawn`, `exec`, `execFile`, `spawnSync`, `execSync`, `execFileSync` ([pastda](#boshqa-dasturlarni-ishga-tushirish-nodechild_process)) |
 | `os`, `url`, `module`, `timers`, `timers/promises`, `process`, `tty` | Ko'p ishlatiladigan funksiyalar (`os.cpus()`, `fileURLToPath`, `createRequire`, promise'li `setTimeout`, …) |
 
 `process` — `EventEmitter` (`process.on("exit")`); `global`, `setImmediate`, `process.emitWarning` ham bor.
 **Diqqat (2.0):** `process.version` endi rtn moslashgan Node versiyasini qaytaradi (`v22.12.0`), shunda paketlar
 Node uchun yozilgan kod yo'lini tanlaydi; rtn'ning o'z versiyasi `process.versions.rtn` / `rtn.version` da.
+
+### Boshqa dasturlarni ishga tushirish: `node:child_process`
+
+```ts
+import { spawn, exec, execSync } from "node:child_process";
+import { promisify } from "node:util";
+
+const branch = execSync("git branch --show-current", { encoding: "utf8" }).trim();
+
+const { stdout } = await promisify(exec)("ls -1 src | wc -l");
+console.log(`${stdout.trim()} files on ${branch}`);
+
+const child = spawn("grep", ["-c", "TODO"], { cwd: "src" });
+child.stdout.setEncoding("utf8").on("data", (n) => console.log("TODOs:", n.trim()));
+child.on("close", (code) => console.log("grep exited with", code));
+child.stdin.end("TODO: one\nTODO: two\n");
+```
+
+| | |
+|---|---|
+| Funksiyalar | `spawn`, `exec`, `execFile` (callback yoki `util.promisify` → `{ stdout, stderr }`), `spawnSync`, `execSync`, `execFileSync` |
+| Parametrlar | `cwd`, `env`, `stdio` (`"pipe"`, `"inherit"`, `"ignore"`, har bir fd uchun), `shell`, `input`, `encoding`, `timeout`, `killSignal`, `maxBuffer`, `signal` (AbortSignal), `argv0` |
+| `ChildProcess` | `pid`, `stdin` / `stdout` / `stderr` (`data`, `end`, `setEncoding`, `pipe()`, `for await`), `kill()`, `exitCode`, `signalCode`; hodisalar: `spawn`, `exit`, `close`, `error` |
+| Xatolar | Node'dagidek: `spawn foo ENOENT` (`code`, `errno`, `syscall`, `path`, `spawnargs`), `Command failed: …` (`status` / `code`, `signal`, `stdout`, `stderr` bilan) |
+
+`tests/cases/child-process.mjs` Node 22 bilan aynan bir xil natija chiqaradi. Qo'llab-quvvatlanmaydi: `fork()`
+va IPC (`send()`), `detached` jarayon guruhlari va yuqoridagi uchtadan boshqa `stdio` qiymatlari.
 
 ### Kodingizni testlash: `rtn test`
 
@@ -447,7 +545,7 @@ test("mock'lar", () => {
 ```text
 $ rtn test
 
-● rtn test v2.0.0
+● rtn test v2.1.0
 
 math.test.ts:
   ✓ add › sonlarni qo'shadi [0.09ms]
@@ -648,6 +746,8 @@ flowchart TB
 ```
 src/
 ├── main.cpp              CLI
+├── dotenv.cpp/.hpp       .env fayllarini o'qish va yuklash
+├── watch.cpp/.hpp        rtn --watch: inotify, qayta ishga tushirish
 ├── runtime.cpp/.hpp      JS dvigatel, event loop, taymerlar, I/O, ushlanmagan rejection'lar
 ├── repl.cpp              REPL (async eval, ko'p qatorli kiritish, TypeScript)
 ├── upgrade.cpp           rtn upgrade: yuklash, SHA-256 tekshiruvi, atomik almashtirish
@@ -664,9 +764,11 @@ src/
 ├── js/buffer.js          Buffer
 ├── js/node.js            node:events, util, os, assert, url, crypto, timers, process
 ├── js/cjs.js             npm paketlarini topish, CommonJS require()
+├── js/child_process.js   node:child_process
 ├── js/test.js, init.js   rtn test, rtn init
+├── js/scripts.js         rtn run <skript>
 ├── js/http.js            rtn.serve()
-└── bindings/             console, timers, process, fs, encoding, http, fetch, crypto
+└── bindings/             console, timers, process, fs, encoding, http, fetch, crypto, child_process
 tests/                    Test to'plami (run.sh, cases/, strip/, http_test.py, fetch_test.py, upgrade_test.sh)
 install.sh                Bir qatorli o'rnatuvchi (curl … | bash)
 .github/workflows/        CI (har bir push) va release (main'da versiya o'zgarganda yoki v* teg)
@@ -709,11 +811,13 @@ tests/run.sh --update  # ataylab o'zgartirishdan keyin kutilgan natijalarni qayt
 
 | To'plam | Nimani tekshiradi |
 |---|---|
-| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 21 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto va `node-compat.mjs` (Buffer, events, util, assert, crypto, …) — natijasi **Node 22 bilan aynan bir xil**. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
+| `tests/cases/` | Kutilgan stdout/stderr va chiqish kodi bilan 22 ta skript: console formati, event loop tartibi, modullar, fs, fs/promises, path, process, xatolar, TypeScript, Web API, hodisalar, fetch, crypto va `node-compat.mjs` (Buffer, events, util, assert, crypto, …) hamda `child-process.mjs` — natijasi **Node 22 bilan aynan bir xil**. Bir nechtasining natijasi **Node yoki Deno bilan aynan bir xil** |
 | `tests/strip/` | TypeScript → JavaScript natijasi belgima-belgi, qatorlar soni saqlanishi |
 | `tests/http_test.py` | Xom socket orqali 27 ta HTTP tekshiruvi: pipelining, chunked body, 100-continue, 400/408/413/431/505, keep-alive timeout, slowloris, 400 ta parallel so'rov, `stop()` |
 | `tests/fixtures/project` | npm paketlarini topish va CommonJS: `exports` shartlari va pattern'lari, `imports`, scoped paketlar, ichma-ich `node_modules`, `require` sikllari, `__esModule`, `require(esm)` |
-| `tests/fixtures/testrunner` | `rtn test` chiqishi (o'tgan, yiqilgan, o'tkazilgan, todo, timeout, buzilgan fayl) va `rtn init` |
+| `tests/fixtures/testrunner` | `rtn test` chiqishi (o'tgan, yiqilgan, o'tkazilgan, todo, timeout, buzilgan fayl) va `rtn init` (TypeScript va JavaScript) |
+| `tests/fixtures/scripts`, `dotenv` | `rtn run` (pre/post skriptlar, argumentlar, `node_modules/.bin`, chiqish kodlari) va `.env`: o'qish, fayllar ustuvorligi, `--env-file` |
+| `--watch` | Import qilingan fayl o'zgarganda haqiqiy qayta ishga tushish, SIGTERM dasturni ham to'xtatishi |
 | `tests/fetch_test.py` | Xom socket server orqali 16 ta `fetch()` tekshiruvi: chunked, ulanish yopilguncha keladigan, 1xx, uzilgan, juda katta va buzilgan javoblar |
 | `tests/upgrade_test.sh` | Soxta release server orqali `install.sh` va `rtn upgrade`: aniq va so'nggi versiya, PATH sozlash, buzilgan checksum, atomik yangilash, animatsiyali terminal rejimi |
 | CLI + REPL | Argumentlar, stdin skriptlari, `await` bilan REPL sessiyasi |
@@ -733,7 +837,8 @@ RunTime-Now hali yosh loyiha. Hozircha yo'q narsalar (taxminiy muhimlik tartibid
 - [x] Test runner (`rtn test`)
 - [x] `crypto.randomUUID()` / `getRandomValues()`, `structuredClone`, `AbortController`, `EventTarget`
 - [x] `Buffer`, `crypto.subtle.digest`, `node:events` / `util` / `os` / `assert`
-- [ ] `node:stream`, `node:child_process`, `node:http`, `crypto.subtle` ning qolgan qismi
+- [x] `node:child_process`, `rtn run` (package.json skriptlari), `--watch`, `.env` fayllari
+- [ ] `node:stream`, `node:http`, `crypto.subtle` ning qolgan qismi
 - [ ] Stream body'lar (`ReadableStream`), `FormData`, `Blob`
 - [ ] WebSocket, HTTPS/TLS
 - [ ] `Intl` (tilga moslangan formatlash)
